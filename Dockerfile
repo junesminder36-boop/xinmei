@@ -1,8 +1,11 @@
-# syntax=docker/dockerfile:1
-FROM node:20-alpine AS base
+FROM node:20-slim
 
-# Install dependencies for native modules
-RUN apk add --no-cache python3 make g++ libc6-compat
+# Install build tools for native modules (better-sqlite3)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -14,26 +17,13 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Production image
-FROM node:20-alpine AS runner
-
-RUN apk add --no-cache libc6-compat
-
-WORKDIR /app
-
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV DATABASE_URL=file:/app/data/xinmei.db
 
-# Create data directories for SQLite persistence
-RUN mkdir -p /app/data /var/lib/render
-
-# Copy necessary files from builder
-COPY --from=base /app/.next/standalone ./
-COPY --from=base /app/.next/static ./.next/static
-COPY --from=base /app/public ./public
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/package.json ./package.json
+# Create data directory
+RUN mkdir -p /app/data
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", ".next/standalone/server.js"]
