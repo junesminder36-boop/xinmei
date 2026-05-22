@@ -2,7 +2,6 @@ services:
   - type: web
     name: xinmei
     runtime: docker
-    repo: https://github.com/yourname/xinmei
     branch: main
     plan: free
     dockerfilePath: ./Dockerfile
