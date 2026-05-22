@@ -3,7 +3,7 @@ services:
     name: xinmei
     runtime: docker
     branch: main
-    plan: free
+    plan: starter
     dockerfilePath: ./Dockerfile
     envVars:
       - key: NODE_ENV
