@@ -21,6 +21,12 @@ COPY . .
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
+# Copy missing playwright-core files into standalone output
+RUN mkdir -p .next/standalone/node_modules/playwright-core \
+    && cp node_modules/playwright-core/browsers.json .next/standalone/node_modules/playwright-core/ \
+    && cp -r node_modules/playwright-core/lib .next/standalone/node_modules/playwright-core/ \
+    && cp -r node_modules/playwright-core/package.json .next/standalone/node_modules/playwright-core/
+
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATABASE_URL=file:/app/data/xinmei.db
