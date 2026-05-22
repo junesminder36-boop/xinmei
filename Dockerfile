@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install dependencies and rebuild native modules
 COPY package*.json ./
-RUN npm install && npm rebuild better-sqlite3 --build-from-source
+RUN npm config set registry https://registry.npmjs.org/ && npm install && npm rebuild better-sqlite3 --build-from-source
 
 # Copy source and build
 COPY . .
