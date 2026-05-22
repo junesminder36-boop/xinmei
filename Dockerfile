@@ -10,9 +10,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Install dependencies and rebuild native modules
-COPY package*.json ./
-RUN npm config set registry https://registry.npmjs.org/ && npm install && npm rebuild better-sqlite3 --build-from-source
+# Install dependencies without lock file to avoid mirror registry issues
+COPY package.json ./
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm install && \
+    npm rebuild better-sqlite3 --build-from-source
 
 # Copy source and build
 COPY . .
