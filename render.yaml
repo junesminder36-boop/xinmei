@@ -3,7 +3,7 @@ services:
     name: xinmei
     runtime: docker
     branch: main
-    plan: starter
+    plan: free
     dockerfilePath: ./Dockerfile
     envVars:
       - key: NODE_ENV
@@ -11,10 +11,6 @@ services:
       - key: PORT
         value: 3000
       - key: DATABASE_URL
-        value: file:/var/lib/render/xinmei.db
+        value: file:/app/data/xinmei.db
       - key: DEEPSEEK_API_KEY
         sync: false
-    disk:
-      name: xinmei-data
-      mountPath: /var/lib/render
-      sizeGB: 1
