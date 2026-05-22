@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+.next
+data
+*.db
+.git
+.env.local
+.env.production
+coverage
+README.md

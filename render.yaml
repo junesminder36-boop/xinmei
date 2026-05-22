@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: xinmei
+    runtime: docker
+    repo: https://github.com/yourname/xinmei
+    branch: main
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        value: file:/var/lib/render/xinmei.db
+      - key: DEEPSEEK_API_KEY
+        sync: false
+    disk:
+      name: xinmei-data
+      mountPath: /var/lib/render
+      sizeGB: 1

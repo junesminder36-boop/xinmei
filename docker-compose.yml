@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  xinmei:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xinmei-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DATABASE_URL=file:/app/data/xinmei.db
+      - PORT=3000
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
