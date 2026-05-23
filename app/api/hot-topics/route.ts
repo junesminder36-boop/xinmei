@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_HOT_TOPICS } from "@/lib/hot-topics-seed";
-import { callQianfan } from "@/lib/qianfan";
+
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 
 // 内存缓存：30分钟
 interface CacheEntry {
@@ -12,10 +14,10 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 30 * 60 * 1000;
 
-async function fetchHotTopicsWithQianfan(): Promise<typeof DEFAULT_HOT_TOPICS> {
+async function fetchHotTopicsWithDeepseek(): Promise<typeof DEFAULT_HOT_TOPICS> {
   const systemPrompt = `你是一位地产/物业/城市更新/产业园区行业的资深媒体观察员。
 
-任务：搜索近3天内与以下领域相关的热点话题、行业动态、市场变化或重大事件：
+任务：基于最新行业知识，整理近3天内与以下领域相关的热点话题、行业动态、市场变化或重大事件：
 - 物业管理、智慧物业、物业数字化
 - 商业地产、写字楼、产业园区
 - 城市更新、老旧小区改造、城中村改造
@@ -24,7 +26,7 @@ async function fetchHotTopicsWithQianfan(): Promise<typeof DEFAULT_HOT_TOPICS> {
 - 房地产科技、智慧社区、建筑智能化
 
 要求：
-1. 联网搜索真实热点，不要编造。
+1. 基于你的最新知识，尽量贴近真实热点，不要编造不存在的事件。
 2. 优先选择行业案例、市场数据、企业动态、运营经验类话题。
 3. 避免纯政策文件复述类话题（政策类容易被限流）。
 4. 返回严格有效的 JSON 数组，不要 Markdown 代码块。
@@ -38,39 +40,68 @@ async function fetchHotTopicsWithQianfan(): Promise<typeof DEFAULT_HOT_TOPICS> {
 
 数组长度：8-12条。`;
 
-  const userPrompt = `请搜索近3天物业/地产/城市更新/产业园区行业的热点话题，返回JSON数组。`;
+  const userPrompt = `请整理近3天物业/地产/城市更新/产业园区行业的热点话题，返回JSON数组。`;
 
-  const aiContent = await callQianfan(
-    [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    {
-      model: "ernie-speed-128k",
-      temperature: 0.5,
-      maxTokens: 2000,
-      enableSearch: true,
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.5,
+        max_tokens: 2000,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`DeepSeek API 错误: ${response.status} ${errorText}`);
     }
-  );
 
-  // 去除可能的 Markdown 代码块
-  const cleaned = aiContent
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/, "")
-    .trim();
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const aiContent = data.choices?.[0]?.message?.content;
 
-  const parsed = JSON.parse(cleaned);
-  const topics = Array.isArray(parsed) ? parsed : parsed.topics || parsed.data || [];
+    if (!aiContent) {
+      throw new Error("DeepSeek 返回内容为空");
+    }
 
-  return topics
-    .filter((t: { title?: string }) => t && typeof t.title === "string" && t.title.length > 5)
-    .slice(0, 12)
-    .map((t: { title: string; source?: string; date?: string }) => ({
-      title: t.title,
-      source: t.source || "网络搜索",
-      date: t.date || new Date().toISOString().slice(0, 10),
-    }));
+    // 去除可能的 Markdown 代码块
+    const cleaned = aiContent
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+
+    const parsed = JSON.parse(cleaned);
+    const topics = Array.isArray(parsed) ? parsed : parsed.topics || parsed.data || [];
+
+    return topics
+      .filter((t: { title?: string }) => t && typeof t.title === "string" && t.title.length > 5)
+      .slice(0, 12)
+      .map((t: { title: string; source?: string; date?: string }) => ({
+        title: t.title,
+        source: t.source || "行业观察",
+        date: t.date || new Date().toISOString().slice(0, 10),
+      }));
+  } catch (error) {
+    clearTimeout(timeout);
+    throw error;
+  }
 }
 
 export async function GET(request: Request) {
@@ -93,16 +124,16 @@ export async function GET(request: Request) {
   let errorMsg = "";
 
   try {
-    result = await fetchHotTopicsWithQianfan();
+    result = await fetchHotTopicsWithDeepseek();
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : String(e);
-    console.error("[hot-topics] 千帆热点获取失败，使用兜底数据。错误:", errMsg);
+    console.error("[hot-topics] DeepSeek 热点获取失败，使用兜底数据。错误:", errMsg);
     result = DEFAULT_HOT_TOPICS;
     fallback = true;
     errorMsg = errMsg;
   }
 
-  // 如果千帆返回不足5条，用兜底数据补充
+  // 如果返回不足5条，用兜底数据补充
   if (result.length < 5) {
     const seen = new Set(result.map((r) => r.title));
     const needed = DEFAULT_HOT_TOPICS.filter((d) => !seen.has(d.title));
