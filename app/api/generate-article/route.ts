@@ -53,7 +53,7 @@ ${structure ? `推荐结构：${structure}` : ""}
 请直接输出文章标题和正文。`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+    const timeout = setTimeout(() => controller.abort(), 120000);
 
     const response = await fetch(DEEPSEEK_API_URL, {
       method: "POST",
