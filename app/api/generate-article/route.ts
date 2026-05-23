@@ -3,6 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    hasKey: !!DEEPSEEK_API_KEY,
+    keyPrefix: DEEPSEEK_API_KEY ? DEEPSEEK_API_KEY.slice(0, 8) + "..." : null,
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
