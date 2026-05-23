@@ -341,7 +341,7 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
         throw new Error(data.error || "生成失败");
       }
       // 切换到检测模式并填充标题和正文
-      setDefaultMode("analysis");
+      setDefaultMode("analyze");
       setTitle(data.title);
       setContent(data.content);
       setSelectedPlatforms(idea.platforms as Platform[]);
