@@ -3,7 +3,6 @@
 import { useState } from "react";
 import type { TopicIdea } from "@/types/topic";
 import { Copy, Check, ArrowRight, Lightbulb, Target, Zap, Quote, ChevronDown, ChevronUp, LayoutTemplate, Download, Sparkles } from "lucide-react";
-import type { TopicIdea } from "@/types/topic";
 
 interface TopicInspirationViewProps {
   ideas: TopicIdea[];
