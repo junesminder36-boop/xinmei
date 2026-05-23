@@ -307,7 +307,7 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
         ideas[0]?.title || "选题灵感",
         newsDesc,
         topicPlatforms,
-        dummyReport as AnalysisReport,
+        dummyReport as unknown as AnalysisReport,
         "topic"
       );
     }
