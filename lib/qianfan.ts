@@ -1,5 +1,7 @@
 const QIANFAN_API_KEY = process.env.QIANFAN_API_KEY;
-const QIANFAN_API_URL = "https://qianfan.baidubce.com/v2/chat/completions";
+const QIANFAN_V2_URL = "https://qianfan.baidubce.com/v2/chat/completions";
+const QIANFAN_NATIVE_URL =
+  "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions";
 const QIANFAN_OAUTH_URL = "https://aip.baidubce.com/oauth/2.0/token";
 
 export interface QianfanMessage {
@@ -54,7 +56,9 @@ async function fetchAccessToken(ak: string, sk: string): Promise<string> {
   };
 
   if (data.error) {
-    throw new Error(`千帆 OAuth 错误: ${data.error} ${data.error_description || ""}`);
+    throw new Error(
+      `千帆 OAuth 错误: ${data.error} ${data.error_description || ""}`
+    );
   }
 
   if (!data.access_token) {
@@ -64,7 +68,10 @@ async function fetchAccessToken(ak: string, sk: string): Promise<string> {
   return data.access_token;
 }
 
-async function getBearerToken(): Promise<string> {
+async function getAccessToken(): Promise<{
+  token: string;
+  isBearer: boolean;
+}> {
   const rawKey = QIANFAN_API_KEY;
   if (!rawKey) {
     throw new Error("未配置 QIANFAN_API_KEY 环境变量");
@@ -74,19 +81,19 @@ async function getBearerToken(): Promise<string> {
 
   // 如果已经是纯 Bearer Token，直接使用
   if (!creds) {
-    return rawKey;
+    return { token: rawKey, isBearer: true };
   }
 
   // 检查缓存
   if (cachedToken && Date.now() < cachedToken.expiresAt) {
-    return cachedToken.token;
+    return { token: cachedToken.token, isBearer: false };
   }
 
   // 重新获取 access_token
   const token = await fetchAccessToken(creds.accessKey, creds.secretKey);
   // 提前 10 分钟过期，避免边缘情况
   cachedToken = { token, expiresAt: Date.now() + 28 * 24 * 60 * 60 * 1000 };
-  return token;
+  return { token, isBearer: false };
 }
 
 export async function callQianfan(
@@ -98,7 +105,7 @@ export async function callQianfan(
     enableSearch?: boolean;
   }
 ): Promise<string> {
-  const token = await getBearerToken();
+  const { token, isBearer } = await getAccessToken();
   const model = options?.model || "ernie-speed-128k";
   const temperature = options?.temperature ?? 0.7;
   const maxTokens = options?.maxTokens ?? 2000;
@@ -126,15 +133,33 @@ export async function callQianfan(
   const timeout = setTimeout(() => controller.abort(), 45000);
 
   try {
-    const response = await fetch(QIANFAN_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    let response: Response;
+
+    if (isBearer) {
+      // OpenAI 兼容接口（v2）
+      response = await fetch(QIANFAN_V2_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } else {
+      // 百度原生接口：access_token 放 URL 参数里
+      const url = `${QIANFAN_NATIVE_URL}?access_token=${encodeURIComponent(
+        token
+      )}`;
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    }
 
     clearTimeout(timeout);
 
@@ -143,14 +168,24 @@ export async function callQianfan(
       throw new Error(`千帆 API 错误: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const data = (await response.json()) as Record<string, unknown>;
 
-    if (!content) {
-      throw new Error("千帆返回内容为空");
+    // 尝试两种响应格式
+    // v2 / OpenAI 兼容格式
+    const choices = data.choices as
+      | Array<{ message?: { content?: string } }>
+      | undefined;
+    if (choices && choices[0]?.message?.content) {
+      return choices[0].message.content;
     }
 
-    return content as string;
+    // 百度原生格式
+    const result = data.result as string | undefined;
+    if (result) {
+      return result;
+    }
+
+    throw new Error("千帆返回内容为空");
   } catch (error) {
     clearTimeout(timeout);
     throw error;
