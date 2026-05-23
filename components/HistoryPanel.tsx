@@ -79,36 +79,49 @@ export function HistoryPanel({ open, onClose, onSelect }: HistoryPanelProps) {
             </div>
           )}
 
-          {reports.map((r) => (
-            <div
-              key={r.id}
-              className="history-item"
-              onClick={() => onSelect(r)}
-            >
-              <div className="history-item-title">{r.title || "无标题"}</div>
-              <div className="history-item-meta">
-                <span>{formatTime(r.createdAt)}</span>
-                <span className="history-item-platforms">
-                  {r.platforms.join("、")}
-                </span>
-              </div>
-              <div className="history-item-scores">
-                <ScoreBadge label="可信度" score={r.report.scores.credibility} />
-                <ScoreBadge label="安全性" score={r.report.scores.safety} />
-                <ScoreBadge label="差异化" score={r.report.scores.differentiation} />
-                <span className={`history-advice advice-${r.report.scores.advice === "建议发布" ? "ok" : r.report.scores.advice === "建议修改后发布" ? "warn" : "danger"}`}>
-                  {r.report.scores.advice}
-                </span>
-              </div>
-              <button
-                className="history-item-delete"
-                onClick={(e) => handleDelete(e, r.id)}
-                title="删除"
+          {reports.map((r) => {
+            const scores = r.report?.scores;
+            const platforms = Array.isArray(r.platforms) ? r.platforms : [];
+            return (
+              <div
+                key={r.id}
+                className="history-item"
+                onClick={() => onSelect(r)}
               >
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
+                <div className="history-item-title">{r.title || "无标题"}</div>
+                <div className="history-item-meta">
+                  <span>{formatTime(r.createdAt)}</span>
+                  <span className="history-item-platforms">
+                    {platforms.join("、") || "未选平台"}
+                  </span>
+                </div>
+                {r.type === "topic" ? (
+                  <div className="history-item-scores">
+                    <span className="history-score mid">选题灵感</span>
+                    <span className="history-item-platforms" style={{ marginLeft: "auto" }}>
+                      {platforms.join("、") || "未选平台"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="history-item-scores">
+                    <ScoreBadge label="可信度" score={scores?.credibility ?? 0} />
+                    <ScoreBadge label="安全性" score={scores?.safety ?? 0} />
+                    <ScoreBadge label="差异化" score={scores?.differentiation ?? 0} />
+                    <span className={`history-advice advice-${scores?.advice === "建议发布" ? "ok" : scores?.advice === "建议修改后发布" ? "warn" : "danger"}`}>
+                      {scores?.advice || "暂无建议"}
+                    </span>
+                  </div>
+                )}
+                <button
+                  className="history-item-delete"
+                  onClick={(e) => handleDelete(e, r.id)}
+                  title="删除"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

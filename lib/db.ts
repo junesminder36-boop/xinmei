@@ -74,6 +74,16 @@ function initSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_crawl_logs_source ON crawl_logs(source);
     CREATE INDEX IF NOT EXISTS idx_crawl_logs_started ON crawl_logs(started_at DESC);
   `);
+
+  // 迁移：给 reports 表添加 type 字段（如果还不存在）
+  try {
+    const columns = db.pragma("table_info(reports)") as Array<{ name: string }>;
+    if (!columns.find((c) => c.name === "type")) {
+      db.exec(`ALTER TABLE reports ADD COLUMN type TEXT DEFAULT 'analysis'`);
+    }
+  } catch (_) {
+    // 忽略迁移错误
+  }
 }
 
 export interface SavedReport {
@@ -83,25 +93,28 @@ export interface SavedReport {
   platforms: Platform[];
   report: AnalysisReport;
   createdAt: number;
+  type?: string;
 }
 
 export function saveReport(
   title: string,
   content: string,
   platforms: Platform[],
-  report: AnalysisReport
+  report: AnalysisReport,
+  type = "analysis"
 ): SavedReport {
   const db = getDb();
   const stmt = db.prepare(
-    `INSERT INTO reports (title, content, platforms, report_json, scores_json, created_at)
-     VALUES (?, ?, ?, ?, ?, unixepoch())`
+    `INSERT INTO reports (title, content, platforms, report_json, scores_json, type, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, unixepoch())`
   );
   const result = stmt.run(
     title,
     content,
     JSON.stringify(platforms),
     JSON.stringify(report),
-    JSON.stringify(report.scores)
+    JSON.stringify(report.scores),
+    type
   );
   const id = Number(result.lastInsertRowid);
   return {
@@ -111,6 +124,7 @@ export function saveReport(
     platforms,
     report,
     createdAt: Math.floor(Date.now() / 1000),
+    type,
   };
 }
 
@@ -118,7 +132,7 @@ export function getReports(limit = 50, offset = 0): SavedReport[] {
   const db = getDb();
   const rows = db
     .prepare(
-      `SELECT id, title, content, platforms, report_json, scores_json, created_at
+      `SELECT id, title, content, platforms, report_json, scores_json, created_at, type
        FROM reports
        ORDER BY created_at DESC
        LIMIT ? OFFSET ?`
@@ -131,6 +145,7 @@ export function getReports(limit = 50, offset = 0): SavedReport[] {
       report_json: string;
       scores_json: string;
       created_at: number;
+      type: string;
     }>;
 
   return rows.map((r) => ({
@@ -140,6 +155,7 @@ export function getReports(limit = 50, offset = 0): SavedReport[] {
     platforms: JSON.parse(r.platforms) as Platform[],
     report: JSON.parse(r.report_json) as AnalysisReport,
     createdAt: r.created_at,
+    type: r.type,
   }));
 }
 
@@ -147,7 +163,7 @@ export function getReportById(id: number): SavedReport | null {
   const db = getDb();
   const row = db
     .prepare(
-      `SELECT id, title, content, platforms, report_json, scores_json, created_at
+      `SELECT id, title, content, platforms, report_json, scores_json, created_at, type
        FROM reports WHERE id = ?`
     )
     .get(id) as
@@ -159,6 +175,7 @@ export function getReportById(id: number): SavedReport | null {
         report_json: string;
         scores_json: string;
         created_at: number;
+        type: string;
       }
     | undefined;
 
@@ -171,6 +188,7 @@ export function getReportById(id: number): SavedReport | null {
     platforms: JSON.parse(row.platforms) as Platform[],
     report: JSON.parse(row.report_json) as AnalysisReport,
     createdAt: row.created_at,
+    type: row.type,
   };
 }
 

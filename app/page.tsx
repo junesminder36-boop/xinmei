@@ -84,13 +84,14 @@ export default function Home() {
     t: string,
     c: string,
     platforms: Platform[],
-    r: AnalysisReport
+    r: AnalysisReport | Record<string, unknown>,
+    type?: string
   ) => {
     try {
       await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: t, content: c, platforms, report: r }),
+        body: JSON.stringify({ title: t, content: c, platforms, report: r, type }),
       });
     } catch (e) {
       console.error("自动保存失败:", e);
@@ -98,6 +99,11 @@ export default function Home() {
   };
 
   const handleSelectHistory = (saved: SavedReport) => {
+    if (saved.type === "topic") {
+      alert("选题灵感暂不支持从历史记录恢复，请重新生成。");
+      setHistoryOpen(false);
+      return;
+    }
     setTitle(saved.title);
     setContent(saved.content);
     setSelectedPlatforms(saved.platforms);
@@ -259,6 +265,52 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
     const ideas = await generateTopicIdeasWithAI(newsDesc, topicPlatforms, selectedStyle);
     setTopicIdeas(ideas);
     setTopicLoading(false);
+
+    // 自动保存选题灵感到历史记录
+    if (ideas && ideas.length > 0) {
+      const dummyReport = {
+        scores: {
+          differentiation: 0,
+          credibility: 0,
+          safety: 0,
+          titleScore: 0,
+          deAIfication: 0,
+          advice: "选题灵感",
+        },
+        differentiation: {
+          riskLevel: "safe",
+          coreObject: newsDesc,
+          realIssue: "",
+          commonAngles: [],
+          suggestedAngles: ideas.map((i) => i.title),
+          summary: `基于「${newsDesc}」生成 ${ideas.length} 个选题角度`,
+        },
+        homogeneity: { dimensions: [], issues: [], summary: "" },
+        platformRisks: [],
+        policyChecks: [],
+        rewrites: [],
+        rewrittenVersion: {
+          title: ideas[0]?.title || "",
+          content: ideas.map((i) => i.title).join("\n"),
+          titleReason: "",
+          contentReason: "",
+        },
+        actionList: [],
+        titleScore: { total: 0, dimensions: [] },
+        deAIfication: { score: 0, markers: [], suggestions: [] },
+        dateCompliance: { hasVagueDate: false, issues: [], suggestion: "" },
+        privacyCompliance: { hasPrivacyRisk: false, issues: [], suggestion: "" },
+        placementRatio: { ratio: 0, keywords: [], suggestion: "" },
+        structureMatch: [],
+      };
+      saveReportToDb(
+        ideas[0]?.title || "选题灵感",
+        newsDesc,
+        topicPlatforms,
+        dummyReport as AnalysisReport,
+        "topic"
+      );
+    }
   };
 
   // 同步页面状态到 AI 助手上下文

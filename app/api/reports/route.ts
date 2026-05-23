@@ -18,11 +18,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, content, platforms, report } = body as {
+    const { title, content, platforms, report, type } = body as {
       title: string;
       content: string;
       platforms: Platform[];
       report: object;
+      type?: string;
     };
 
     if (!title || !content || !report) {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const saved = saveReport(title, content, platforms || [], report as Parameters<typeof saveReport>[3]);
+    const saved = saveReport(title, content, platforms || [], report as Parameters<typeof saveReport>[3], type);
     return NextResponse.json(saved);
   } catch (error) {
     console.error("保存报告失败:", error);

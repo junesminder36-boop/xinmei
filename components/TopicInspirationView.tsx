@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { TopicIdea } from "@/types/topic";
-import { Copy, Check, ArrowRight, Lightbulb, Target, Zap, Quote, ChevronDown, ChevronUp, LayoutTemplate } from "lucide-react";
+import { Copy, Check, ArrowRight, Lightbulb, Target, Zap, Quote, ChevronDown, ChevronUp, LayoutTemplate, Download } from "lucide-react";
 
 interface TopicInspirationViewProps {
   ideas: TopicIdea[];
@@ -25,7 +25,62 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function generateTopicMarkdown(ideas: TopicIdea[], newsDesc: string): string {
+  const lines: string[] = [
+    "# 选题灵感报告",
+    "",
+    `**输入描述：** ${newsDesc}`,
+    `**生成时间：** ${new Date().toLocaleString("zh-CN")}`,
+    `**共生成 ${ideas.length} 个选题角度**`,
+    "",
+    "---",
+    "",
+  ];
+
+  ideas.forEach((idea, idx) => {
+    lines.push(`## ${idx + 1}. ${idea.title}`);
+    lines.push("");
+    lines.push(`- **切入角度：** ${idea.angle}`);
+    lines.push(`- **适配平台：** ${idea.platforms.join("、")}`);
+    if (idea.structure) {
+      lines.push(`- **推荐结构：** ${idea.structure}`);
+    }
+    lines.push("");
+
+    if (idea.titleOptions) {
+      lines.push("### 标题三选一");
+      lines.push(`- 【流量】${idea.titleOptions.traffic.title}（${idea.titleOptions.traffic.score}/10 · ${idea.titleOptions.traffic.reason}）`);
+      lines.push(`- 【专业】${idea.titleOptions.professional.title}（${idea.titleOptions.professional.score}/10 · ${idea.titleOptions.professional.reason}）`);
+      lines.push(`- 【平衡】${idea.titleOptions.balanced.title}（${idea.titleOptions.balanced.score}/10 · ${idea.titleOptions.balanced.reason}）`);
+      lines.push("");
+    }
+
+    lines.push("### 爆点理由");
+    lines.push(idea.hookReason);
+    lines.push("");
+
+    lines.push("### 开头建议");
+    lines.push(idea.openingSuggestion);
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+  });
+
+  return lines.join("\n");
+}
+
 export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft }: TopicInspirationViewProps) {
+  const handleExport = () => {
+    const md = generateTopicMarkdown(ideas, newsDesc);
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `选题灵感-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <div className="verdict tone-safe">
@@ -38,6 +93,15 @@ export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft }: TopicIns
             基于「{newsDesc.slice(0, 40)}{newsDesc.length > 40 ? "…" : ""}」生成，覆盖 {new Set(ideas.flatMap((i) => i.platforms)).size} 个平台的适配角度
           </div>
         </div>
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={handleExport}
+          title="导出 Markdown"
+          style={{ marginLeft: "auto", flexShrink: 0 }}
+        >
+          <Download size={13} />
+          导出
+        </button>
       </div>
 
       <div className="topic-list">
