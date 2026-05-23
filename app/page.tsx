@@ -322,6 +322,7 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
   };
 
   const handleGenerateArticle = async (idea: TopicIdea) => {
+    console.log("[前端] 开始生成文章:", idea.title);
     setGeneratingArticleId(idea.id);
     try {
       const res = await fetch("/api/generate-article", {
@@ -337,17 +338,19 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
         }),
       });
       const data = await res.json();
+      console.log("[前端] API 响应:", res.status, data);
       if (!res.ok) {
         throw new Error(data.error || "生成失败");
       }
       // 切换到检测模式并填充标题和正文
+      console.log("[前端] 切换检测模式, 标题:", data.title?.slice(0, 30));
       setDefaultMode("analyze");
       setTitle(data.title);
       setContent(data.content);
       setSelectedPlatforms(idea.platforms as Platform[]);
       setReport(null);
     } catch (e) {
-      console.error("生成文章失败:", e);
+      console.error("[前端] 生成文章失败:", e);
       alert(e instanceof Error ? e.message : "生成文章失败，请重试");
     } finally {
       setGeneratingArticleId(null);
