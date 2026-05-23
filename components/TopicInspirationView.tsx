@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import type { TopicIdea } from "@/types/topic";
-import { Copy, Check, ArrowRight, Lightbulb, Target, Zap, Quote, ChevronDown, ChevronUp, LayoutTemplate, Download } from "lucide-react";
+import { Copy, Check, ArrowRight, Lightbulb, Target, Zap, Quote, ChevronDown, ChevronUp, LayoutTemplate, Download, Sparkles } from "lucide-react";
+import type { TopicIdea } from "@/types/topic";
 
 interface TopicInspirationViewProps {
   ideas: TopicIdea[];
   newsDesc: string;
   onUseAsDraft?: (title: string, opening: string) => void;
+  onGenerateArticle?: (idea: TopicIdea) => void;
+  generatingId?: string | null;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -69,7 +72,7 @@ function generateTopicMarkdown(ideas: TopicIdea[], newsDesc: string): string {
   return lines.join("\n");
 }
 
-export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft }: TopicInspirationViewProps) {
+export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft, onGenerateArticle, generatingId }: TopicInspirationViewProps) {
   const handleExport = () => {
     try {
       const md = generateTopicMarkdown(ideas, newsDesc);
@@ -164,8 +167,27 @@ export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft }: TopicIns
               <p className="topic-section-text" style={{ fontStyle: "italic" }}>{idea.openingSuggestion}</p>
             </div>
 
-            {onUseAsDraft && (
-              <div className="topic-card-footer">
+            <div className="topic-card-footer" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {onGenerateArticle && (
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => onGenerateArticle(idea)}
+                  disabled={generatingId === idea.id}
+                >
+                  {generatingId === idea.id ? (
+                    <>
+                      <span className="loading-spinner" style={{ width: 10, height: 10, borderWidth: 1.5, marginRight: 4 }} />
+                      生成中…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={12} />
+                      一键生成文章
+                    </>
+                  )}
+                </button>
+              )}
+              {onUseAsDraft && (
                 <button
                   className="btn btn-sm btn-ghost"
                   onClick={() => onUseAsDraft(idea.title, idea.openingSuggestion)}
@@ -173,8 +195,8 @@ export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft }: TopicIns
                   <ArrowRight size={12} />
                   转为检测草稿
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         ))}
       </div>

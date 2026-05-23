@@ -60,6 +60,7 @@ export default function Home() {
   const [selectedStyle, setSelectedStyle] = useState<TopicStyle>("深度解读");
   const [topicLoading, setTopicLoading] = useState(false);
   const [topicIdeas, setTopicIdeas] = useState<TopicIdea[] | null>(null);
+  const [generatingArticleId, setGeneratingArticleId] = useState<string | null>(null);
 
   const handleAnalyze = async () => {
     setLoading(true);
@@ -317,6 +318,39 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
         dummyReport as unknown as AnalysisReport,
         "topic"
       );
+    }
+  };
+
+  const handleGenerateArticle = async (idea: TopicIdea) => {
+    setGeneratingArticleId(idea.id);
+    try {
+      const res = await fetch("/api/generate-article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: idea.title,
+          angle: idea.angle,
+          opening: idea.openingSuggestion,
+          platforms: idea.platforms,
+          style: selectedStyle,
+          structure: idea.structure,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "生成失败");
+      }
+      // 切换到检测模式并填充标题和正文
+      setDefaultMode("analysis");
+      setTitle(data.title);
+      setContent(data.content);
+      setSelectedPlatforms(idea.platforms as Platform[]);
+      setReport(null);
+    } catch (e) {
+      console.error("生成文章失败:", e);
+      alert(e instanceof Error ? e.message : "生成文章失败，请重试");
+    } finally {
+      setGeneratingArticleId(null);
     }
   };
 
@@ -653,6 +687,8 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
                     ideas={topicIdeas}
                     newsDesc={newsDesc}
                     onUseAsDraft={handleUseAsDraft}
+                    onGenerateArticle={handleGenerateArticle}
+                    generatingId={generatingArticleId}
                   />
                 )}
               </>
