@@ -344,6 +344,7 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
       }
       // 切换到检测模式并填充标题和正文
       console.log("[前端] 切换检测模式, 标题:", data.title?.slice(0, 30));
+      setMode("analyze");
       setDefaultMode("analyze");
       setTitle(data.title);
       setContent(data.content);
