@@ -71,14 +71,22 @@ function generateTopicMarkdown(ideas: TopicIdea[], newsDesc: string): string {
 
 export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft }: TopicInspirationViewProps) {
   const handleExport = () => {
-    const md = generateTopicMarkdown(ideas, newsDesc);
-    const blob = new Blob([md], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `选题灵感-${new Date().toISOString().slice(0, 10)}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const md = generateTopicMarkdown(ideas, newsDesc);
+      const blob = new Blob([md], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `选题灵感-${new Date().toISOString().slice(0, 10)}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      console.error("导出失败:", e);
+      alert("导出失败，请重试");
+    }
   };
 
   return (

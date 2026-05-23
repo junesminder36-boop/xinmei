@@ -119,27 +119,34 @@ export default function Home() {
 
   const handleExportReport = () => {
     if (!report) return;
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-    const filename = `xinmei-report-${timestamp}`;
+    try {
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      const filename = `xinmei-report-${timestamp}`;
 
-    // JSON export
-    const jsonBlob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
-    const jsonUrl = URL.createObjectURL(jsonBlob);
-    const jsonLink = document.createElement("a");
-    jsonLink.href = jsonUrl;
-    jsonLink.download = `${filename}.json`;
-    jsonLink.click();
-    URL.revokeObjectURL(jsonUrl);
+      const downloadFile = (blob: Blob, name: string) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
 
-    // Markdown export
-    const md = generateMarkdownReport(title, content, selectedPlatforms, report);
-    const mdBlob = new Blob([md], { type: "text/markdown" });
-    const mdUrl = URL.createObjectURL(mdBlob);
-    const mdLink = document.createElement("a");
-    mdLink.href = mdUrl;
-    mdLink.download = `${filename}.md`;
-    mdLink.click();
-    URL.revokeObjectURL(mdUrl);
+      // JSON export
+      const jsonBlob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+      downloadFile(jsonBlob, `${filename}.json`);
+
+      // Markdown export
+      const md = generateMarkdownReport(title, content, selectedPlatforms, report);
+      const mdBlob = new Blob([md], { type: "text/markdown" });
+      downloadFile(mdBlob, `${filename}.md`);
+    } catch (e) {
+      console.error("导出失败:", e);
+      alert("导出失败，请重试");
+    }
   };
 
   function generateMarkdownReport(
