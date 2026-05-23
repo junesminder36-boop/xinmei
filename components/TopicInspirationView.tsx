@@ -150,6 +150,3 @@ function TitleOptions({ idea }: { idea: TopicIdea }) {
     </div>
   );
 }
-    </>
-  );
-}
