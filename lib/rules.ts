@@ -185,6 +185,127 @@ export const QUALIFICATION_TOPICS = [
   "培训",
 ];
 
+// ========== 新增：内容总监工作手册规则 ==========
+
+// 模糊日期检测正则
+export const VAGUE_DATE_PATTERNS: RegExp[] = [
+  /上周五|上周|前几天|近来|近日|近期/,
+  /年初|年中|年末|年初以来/,
+  /去年|前年|大前年/,
+];
+
+// 去AI化标记词/结构
+export const AI_MARKERS = [
+  "首先",
+  "其次",
+  "再次",
+  "最后",
+  "综上所述",
+  "总而言之",
+  "值得注意的是",
+  "第一个",
+  "第二个",
+  "第三个",
+  "第四个",
+  "一方面",
+  "另一方面",
+];
+
+// 城市更新行业专属敏感词及替代说法
+export interface UrbanRenewalSensitiveWord {
+  word: string;
+  level: RiskLevel;
+  replace: string;
+}
+
+export const URBAN_RENEWAL_SENSITIVE: UrbanRenewalSensitiveWord[] = [
+  { word: "强拆", level: "高", replace: "加快推进/集中实施" },
+  { word: "钉子户", level: "高", replace: "协调难度较大的住户" },
+  { word: "暴力拆迁", level: "高", replace: "集中实施" },
+  { word: "上访", level: "高", replace: "反馈渠道/诉求表达" },
+  { word: "补偿不公", level: "高", replace: "个体诉求差异" },
+  { word: "失地农民", level: "高", replace: "原住居民/安置居民" },
+  { word: "黑箱操作", level: "高", replace: "" },
+  { word: "关系户", level: "高", replace: "" },
+  { word: "腾退", level: "中", replace: "" },
+  { word: "征收", level: "中", replace: "" },
+  { word: "安置费", level: "中", replace: "" },
+];
+
+// 极限词扩展（广告法+内容总监手册）
+export const EXTENDED_ABSOLUTE_WORDS = [
+  ...ABSOLUTE_WORDS,
+  "最好",
+  "领先",
+  "独家",
+  "首创",
+  "必涨",
+  "抄底",
+  "最佳时机",
+  "买就对了",
+  "不容错过",
+  "限时抢购",
+];
+
+// 优码产品关键词（用于植入比例检测）
+export const PRODUCT_KEYWORDS = [
+  "优客云",
+  "CustLink",
+  "优物云",
+  "PropSmart",
+  "绿洲平台",
+  "Oasis",
+  "优营销",
+  "优交付",
+  "优客服",
+  "优享家",
+  "优物管",
+  "优物联",
+  "优码科技",
+  "优码",
+];
+
+// 各平台结构库
+export interface PlatformStructure {
+  name: string;
+  desc: string;
+  fit: string;
+}
+
+export const PLATFORM_STRUCTURES: Record<Platform, PlatformStructure[]> = {
+  微信公众号: [
+    { name: "政策快评体", desc: "政策原文→3个关键变化→影响判断→应对建议", fit: "政策解读" },
+    { name: "案例深拆体", desc: "案例背景→关键动作→数据成效→可复制经验", fit: "案例拆解" },
+    { name: "数据驱动体", desc: "冲击数字开场→趋势解读→行业含义→行动建议", fit: "趋势观察" },
+    { name: "反常识体", desc: "你以为X→其实是Y→为什么→怎么办", fit: "观点冲击" },
+    { name: "对比体", desc: "A vs B多维度对比→适用场景判断", fit: "产品/方案对比" },
+    { name: "故事场景体", desc: "真实场景切入→冲突→破局→启示", fit: "行业故事" },
+  ],
+  小红书: [
+    { name: "干货清单体", desc: "Hook→直接抛3-5个分点→一句洞察收尾", fit: "干货分享" },
+    { name: "数据冲击体", desc: "一组反差数据Hook→拆解原因→行业启示", fit: "数据分享" },
+    { name: "案例切片体", desc: "一个具体场景→拆解关键3步→可复制要点", fit: "案例分享" },
+  ],
+  知乎: [
+    { name: "先结论后论证", desc: "一句结论→3论点→案例→反方辨析", fit: "观点论证" },
+    { name: "反主流观点体", desc: "不同意大多数答案→抛对立观点→论证→升华", fit: "争议话题" },
+    { name: "亲历故事体", desc: "作为XX从业者→真实经历→通用规律", fit: "经验分享" },
+    { name: "时间线推演", desc: "要从XX年说起→演进→当下→未来", fit: "趋势分析" },
+    { name: "多重转折体", desc: "看起来是X→其实是Y→本质是Z", fit: "深度分析" },
+    { name: "数据案例堆砌", desc: "数据开场→案例1/2/3→总结", fit: "实证分析" },
+  ],
+  今日头条: [
+    { name: "痛点共鸣体", desc: "现象描述→痛点放大→给出方法→数据支撑", fit: "痛点分析" },
+    { name: "新闻评论体", desc: "新闻事件复述→3个角度解读→行业启示", fit: "新闻评论" },
+    { name: "清单干货体", desc: "N个X点→每点100-150字展开→总结", fit: "干货清单" },
+  ],
+  百家号: [
+    { name: "痛点共鸣体", desc: "同上", fit: "痛点分析" },
+    { name: "新闻评论体", desc: "同上", fit: "新闻评论" },
+    { name: "清单干货体", desc: "同上", fit: "干货清单" },
+  ],
+};
+
 export const PLATFORM_DESCRIPTIONS: Record<string, string> = {
   百家号:
     "百度百家号严格遵循广告法，严禁标题党、绝对化用语和政策误读。对虚假新闻和营销软文打击力度大。",
@@ -324,6 +445,58 @@ export const PLATFORM_RULES: PlatformRuleEntry[] = [
     keywords: ["强烈推荐", "必买", "种草", "闭眼入", "无限回购"],
     platforms: ["百家号", "今日头条", "小红书"],
     suggestion: "如为推广内容，需明确标注'广告''合作'' sponsored'等。",
+  },
+
+  // 日期模糊
+  {
+    id: "vague_date",
+    name: "日期表述模糊",
+    description:
+      "使用'上周五''前几天''年初''去年'等模糊时间表述，缺乏专业性和可信度。",
+    riskLevel: "中",
+    triggerType: "日期模糊",
+    keywords: ["上周五", "上周", "前几天", "近来", "近日", "近期", "年初", "年中", "年末", "去年", "前年"],
+    platforms: ["百家号", "今日头条", "微信公众号", "小红书", "知乎"],
+    suggestion: "改为具体日期，如'5月18日'；无法查证时删除时间状语，绝不编造。",
+  },
+
+  // 隐私泄露
+  {
+    id: "privacy_leak",
+    name: "客户隐私泄露",
+    description:
+      "文章中出现具体客户企业名称（如'海开控股''华润置地'），未经授权披露客户信息。",
+    riskLevel: "高",
+    triggerType: "隐私泄露",
+    keywords: [],
+    platforms: ["百家号", "今日头条", "微信公众号", "小红书", "知乎"],
+    suggestion: "改为泛化表述，如'某北京国企''某头部资管企业'；公开数据可引用但须标注来源。",
+  },
+
+  // AI痕迹
+  {
+    id: "ai_trace",
+    name: "AI写作痕迹明显",
+    description:
+      "使用'首先...其次...再次...最后''综上所述''总而言之'等AI标志性结构，段落长度过于均匀，缺乏口语化表达。",
+    riskLevel: "中",
+    triggerType: "AI痕迹",
+    keywords: ["首先", "其次", "再次", "最后", "综上所述", "总而言之", "值得注意的是", "第一个", "第二个", "第三个", "第四个"],
+    platforms: ["百家号", "今日头条", "微信公众号", "小红书", "知乎"],
+    suggestion: "改用口语连接词（不过/说实话/讲真/话说回来），句长错落有致，避免工整数字标题。",
+  },
+
+  // 城市更新敏感词
+  {
+    id: "urban_renewal_sensitive",
+    name: "城市更新行业敏感词",
+    description:
+      "使用'强拆''钉子户''暴力拆迁''上访''补偿不公''失地农民''黑箱操作''关系户'等敏感词，可能触发限流。",
+    riskLevel: "高",
+    triggerType: "绝对化",
+    keywords: ["强拆", "钉子户", "暴力拆迁", "上访", "补偿不公", "失地农民", "黑箱操作", "关系户"],
+    platforms: ["百家号", "今日头条", "微信公众号", "小红书", "知乎"],
+    suggestion: "使用替代说法：强拆→加快推进；钉子户→协调难度较大的住户；补偿不公→个体诉求差异；失地农民→原住居民。",
   },
 ];
 

@@ -8,6 +8,13 @@ export interface ChatMessage {
   content: string;
 }
 
+export type WorkflowStage =
+  | "idle"
+  | "clarify"
+  | "structure"
+  | "outline"
+  | "draft";
+
 export interface ChatContextState {
   mode?: "analyze" | "inspiration";
   title?: string;
@@ -17,4 +24,14 @@ export interface ChatContextState {
   topicIdeas?: TopicIdea[];
   selectedStyle?: string;
   report?: AnalysisReport;
+  workflowStage?: WorkflowStage;
+  draftParams?: {
+    platform?: string;
+    theme?: string;
+    audience?: string;
+    placement?: string;
+    wordCount?: string;
+    structure?: string;
+    outline?: string;
+  };
 }

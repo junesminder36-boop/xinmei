@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Platform } from "@/types/report";
 import type { TopicStyle } from "@/types/topic";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Flame, ChevronDown } from "lucide-react";
 
 const PLATFORMS: { id: Platform; name: string; icon: string; brand: string }[] = [
   { id: "百家号", name: "百家号", icon: "百", brand: "pf-baijiahao" },
@@ -50,6 +50,31 @@ export function TopicInspirationPanel({
     }
   };
 
+  const [hotTopics, setHotTopics] = useState<Array<{ title: string; source: string; date: string }>>([]);
+  const [fetchingHot, setFetchingHot] = useState(false);
+  const [showHotDropdown, setShowHotDropdown] = useState(false);
+
+  const fetchHotTopics = async () => {
+    setFetchingHot(true);
+    try {
+      const res = await fetch("/api/hot-topics");
+      const data = await res.json();
+      if (data.topics && Array.isArray(data.topics)) {
+        setHotTopics(data.topics);
+        setShowHotDropdown(true);
+      }
+    } catch (e) {
+      console.error("获取热点失败", e);
+    } finally {
+      setFetchingHot(false);
+    }
+  };
+
+  const selectHotTopic = (title: string) => {
+    onNewsDescChange(title);
+    setShowHotDropdown(false);
+  };
+
   const canGenerate =
     newsDesc.trim().length > 5 && selectedPlatforms.length > 0;
 
@@ -57,10 +82,43 @@ export function TopicInspirationPanel({
     <>
       <div className="sidebar-inner">
         <div>
-          <div className="field-label">
+          <div className="field-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>新闻描述或关键词</span>
-            <span className="hint">{newsDesc.length} 字</span>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={fetchHotTopics}
+              disabled={fetchingHot}
+              style={{ padding: "2px 8px", fontSize: 12, height: 26 }}
+            >
+              {fetchingHot ? (
+                <span className="loading-spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
+              ) : (
+                <Flame size={11} />
+              )}
+              获取行业热点
+            </button>
           </div>
+          {showHotDropdown && hotTopics.length > 0 && (
+            <div style={{ marginBottom: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface)", maxHeight: 180, overflow: "auto" }}>
+              <div style={{ padding: "6px 10px", fontSize: 11, color: "var(--text-muted)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>近3天行业热点（点击选用）</span>
+                <button onClick={() => setShowHotDropdown(false)} style={{ fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>关闭</button>
+              </div>
+              {hotTopics.map((t, i) => (
+                <div
+                  key={i}
+                  onClick={() => selectHotTopic(t.title)}
+                  style={{ padding: "6px 10px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid var(--border-weak)", display: "flex", alignItems: "center", gap: 6 }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "var(--surface-2)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+                >
+                  <ChevronDown size={11} style={{ transform: "rotate(-90deg)", color: "var(--text-muted)", flexShrink: 0 }} />
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{t.source}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <textarea
             className="textarea"
             style={{ minHeight: 120 }}

@@ -11,9 +11,21 @@ import {
   getRulesForPlatform,
   PLATFORM_DESCRIPTIONS,
   TITLE_BAIT_BLACKLIST,
+  VAGUE_DATE_PATTERNS,
+  AI_MARKERS,
+  URBAN_RENEWAL_SENSITIVE,
+  EXTENDED_ABSOLUTE_WORDS,
+  PRODUCT_KEYWORDS,
+  PLATFORM_STRUCTURES,
 } from "./rules";
 import type {
   RewrittenVersion,
+  TitleScore,
+  DeAIficationCheck,
+  DateComplianceCheck,
+  PrivacyComplianceCheck,
+  PlacementRatioCheck,
+  StructureMatchCheck,
 } from "@/types/report";
 import type {
   AnalysisReport,
@@ -260,11 +272,248 @@ function extractPolicyCitations(title: string, content: string): PolicyCitation[
   return citations;
 }
 
+function calculateTitleScore(title: string, platforms: Platform[]): TitleScore {
+  // 关键词命中（简化：看是否含2字以上实词）
+  const keywords = extractTopicKeywords(title);
+  const keywordHit = Math.min(3, keywords.length);
+
+  // 钩子强度：数字/反问/对比/冲突
+  let hookStrength = 0;
+  if (/\d/.test(title)) hookStrength += 1;
+  if (/[？?]/.test(title)) hookStrength += 1;
+  if (/vs|对比|差别|差异|为什么|如何|到底/.test(title)) hookStrength += 1;
+  hookStrength = Math.min(3, hookStrength);
+
+  // 安全性：无极限词、无敏感词
+  let safety = 2;
+  if (EXTENDED_ABSOLUTE_WORDS.some((w) => title.includes(w))) safety -= 1;
+  if (URBAN_RENEWAL_SENSITIVE.some((w) => title.includes(w.word))) safety -= 1;
+  safety = Math.max(0, safety);
+
+  // 平台适配：长度合规
+  let platformFit = 2;
+  const maxLen = platforms.includes("小红书") ? 20 : 22;
+  if (title.length > maxLen) platformFit -= 1;
+  if (title.length > maxLen + 5) platformFit -= 1;
+  platformFit = Math.max(0, platformFit);
+
+  const total = keywordHit + hookStrength + safety + platformFit;
+  const comment = total >= 8
+    ? "标题质量不错，关键词和钩子兼顾"
+    : total >= 5
+    ? "标题有优化空间，可参考建议调整"
+    : "标题风险较高，建议重写";
+
+  return { keywordHit, hookStrength, safety, platformFit, total, comment };
+}
+
+function checkDeAIfication(title: string, content: string): DeAIficationCheck {
+  const fullText = title + content;
+  const issues: DetectedIssue[] = [];
+
+  // 检测AI标记词
+  for (const marker of AI_MARKERS) {
+    if (fullText.includes(marker)) {
+      issues.push({
+        type: "AI痕迹",
+        original: marker,
+        suggestion: "改用口语连接词（不过/说实话/讲真/话说回来）",
+        severity: "中",
+        position: fullText.indexOf(marker) < title.length ? "标题" : "正文",
+      });
+    }
+  }
+
+  // 检测段落长度均匀性（简化：统计段落字数方差）
+  const paragraphs = content.split(/\n+/).filter((p) => p.trim().length > 20);
+  if (paragraphs.length >= 3) {
+    const lengths = paragraphs.map((p) => p.trim().length);
+    const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+    const variance = lengths.reduce((sum, l) => sum + Math.pow(l - avg, 2), 0) / lengths.length;
+    const stdDev = Math.sqrt(variance);
+    const cv = avg > 0 ? stdDev / avg : 0;
+    if (cv < 0.15) {
+      issues.push({
+        type: "AI痕迹",
+        original: "段落长度过于均匀",
+        suggestion: "调整段落长度，长短句交错（10字+25字+15字交替）",
+        severity: "中",
+        position: "正文",
+      });
+    }
+  }
+
+  // 检测过度书面语（缺乏口语连接词）
+  const oralConnectors = ["不过", "说实话", "讲真", "话说回来", "你别说", "这事儿", "说白了"];
+  const hasOral = oralConnectors.some((c) => content.includes(c));
+  if (!hasOral && content.length > 500) {
+    issues.push({
+      type: "AI痕迹",
+      original: "缺乏口语连接词",
+      suggestion: "适当加入'不过''说实话''讲真''话说回来'等口语转折",
+      severity: "低",
+      position: "正文",
+    });
+  }
+
+  const score = Math.max(20, 100 - issues.length * 15);
+  const summary = score > 70
+    ? "文章去AI化表现良好，表达自然"
+    : score > 40
+    ? "存在一定AI痕迹，建议优化句式和连接词"
+    : "AI痕迹明显，建议大幅改写增加口语化和句长变化";
+
+  return { score, issues, summary };
+}
+
+function checkDateCompliance(title: string, content: string): DateComplianceCheck {
+  const fullText = title + "\n" + content;
+  const issues: DetectedIssue[] = [];
+
+  for (const pattern of VAGUE_DATE_PATTERNS) {
+    const match = fullText.match(pattern);
+    if (match) {
+      issues.push({
+        type: "日期模糊",
+        original: match[0],
+        suggestion: "改为具体日期（如'5月18日'），无法查证则删除时间状语",
+        severity: "中",
+        position: fullText.indexOf(match[0]) < title.length ? "标题" : "正文",
+      });
+    }
+  }
+
+  return {
+    passed: issues.length === 0,
+    issues,
+    summary: issues.length === 0
+      ? "日期表述规范，无模糊时间"
+      : `发现${issues.length}处模糊日期表述，建议具体化`,
+  };
+}
+
+// 常见企业名称后缀（用于隐私检测）
+const COMPANY_SUFFIXES = [
+  "控股", "集团", "置业", "地产", "股份", "投资", "建设", "发展",
+  "物业", "园区", "资管", "商管", "房地产", "房产",
+];
+
+function checkPrivacyCompliance(title: string, content: string): PrivacyComplianceCheck {
+  const fullText = title + "\n" + content;
+  const issues: DetectedIssue[] = [];
+
+  // 简单规则：匹配"XX控股""XX集团"等具体企业名（2-4字前缀+后缀）
+  for (const suffix of COMPANY_SUFFIXES) {
+    const regex = new RegExp(`([一-龥]{2,4})${suffix}`, "g");
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(fullText)) !== null) {
+      const name = m[0];
+      // 排除常见泛化词和已脱敏的
+      if (name.startsWith("某") || name.startsWith("某家") || name.startsWith("头部")) continue;
+      // 排除公共机构
+      if (["国务院", "财政部", "住建部", "发改委", "税务局", "教育部", "卫健委", "网信办", "市场监管局"].includes(name)) continue;
+      issues.push({
+        type: "隐私泄露",
+        original: name,
+        suggestion: `改为泛化表述，如"某${suffix}企业""某头部${suffix}"`,
+        severity: "高",
+        position: fullText.indexOf(name) < title.length ? "标题" : "正文",
+      });
+    }
+  }
+
+  // 去重
+  const seen = new Set<string>();
+  const uniqueIssues = issues.filter((i) => {
+    if (seen.has(i.original)) return false;
+    seen.add(i.original);
+    return true;
+  });
+
+  return {
+    passed: uniqueIssues.length === 0,
+    issues: uniqueIssues,
+    summary: uniqueIssues.length === 0
+      ? "未发现具体客户企业名称泄露"
+      : `发现${uniqueIssues.length}处具体企业名称，建议脱敏处理`,
+  };
+}
+
+function checkPlacementRatio(content: string): PlacementRatioCheck {
+  const totalWordCount = content.length;
+  let productWordCount = 0;
+  const issues: DetectedIssue[] = [];
+
+  for (const keyword of PRODUCT_KEYWORDS) {
+    const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+    const matches = content.match(regex);
+    if (matches) {
+      productWordCount += matches.length * keyword.length;
+    }
+  }
+
+  const ratio = totalWordCount > 0 ? Math.round((productWordCount / totalWordCount) * 1000) / 10 : 0;
+  const passed = ratio <= 10;
+
+  if (!passed) {
+    issues.push({
+      type: "植入超标",
+      original: `产品信息占比${ratio}%`,
+      suggestion: "软植入比例应≤10%，建议减少产品提及或增加干货内容",
+      severity: "中",
+      position: "正文",
+    });
+  }
+
+  return {
+    ratio,
+    passed,
+    wordCount: productWordCount,
+    totalWordCount,
+    issues,
+  };
+}
+
+function checkStructureMatch(content: string, platforms: Platform[]): StructureMatchCheck[] {
+  return platforms.map((platform) => {
+    const structures = PLATFORM_STRUCTURES[platform] || [];
+    // 简化规则：根据内容特征匹配结构
+    let bestMatch = structures[0]?.name || "未识别";
+    let matchScore = 50;
+
+    if (content.includes("第一") && content.includes("第二") && content.includes("第三")) {
+      bestMatch = "干货清单体";
+      matchScore = 70;
+    }
+    if (/\d+%|\d+亿|\d+万/.test(content) && content.includes("趋势")) {
+      bestMatch = "数据驱动体";
+      matchScore = 65;
+    }
+    if (content.includes("案例") || content.includes("例如")) {
+      bestMatch = "案例深拆体";
+      matchScore = 60;
+    }
+
+    return {
+      platform,
+      expectedStructure: bestMatch,
+      matchScore,
+      comment: matchScore >= 60
+        ? `内容较符合"${bestMatch}"结构`
+        : `结构与平台推荐结构匹配度较低，建议参考"${bestMatch}"调整`,
+    };
+  });
+}
+
 function calculateScores(
   titleIssues: DetectedIssue[],
   contentIssues: DetectedIssue[],
   policyChecks: PolicyCitation[],
-  platformRisks: PlatformRisk[]
+  platformRisks: PlatformRisk[],
+  deAIssues: DetectedIssue[],
+  dateIssues: DetectedIssue[],
+  privacyIssues: DetectedIssue[],
+  placementIssues: DetectedIssue[]
 ): Scores {
   const allIssues = [...titleIssues, ...contentIssues];
 
@@ -314,14 +563,31 @@ function calculateScores(
   credibility = Math.round(credibility);
   safety = Math.round(safety);
 
+  // 标题得分：基于标题问题和标题打分维度
+  let titleScore = 70;
+  if (titleBaits > 0) titleScore -= 20;
+  if (absolutes > 0) titleScore -= 15;
+  titleScore = Math.max(20, Math.min(100, titleScore));
+
+  // 去AI化得分：基于AI痕迹问题数
+  let deAIfication = Math.max(20, 100 - deAIssues.length * 15);
+  deAIfication = Math.round(deAIfication);
+
+  // 日期、隐私、植入问题也影响可信度和安全
+  if (dateIssues.length > 0) credibility -= 10;
+  if (privacyIssues.length > 0) credibility -= 15;
+  if (placementIssues.length > 0) safety -= 10;
+  credibility = Math.max(20, credibility);
+  safety = Math.max(0, safety);
+
   let advice: Scores["advice"] = "建议发布";
-  if (safety < 30 || credibility < 40) {
+  if (safety < 30 || credibility < 40 || titleScore < 30) {
     advice = "暂不建议发布";
-  } else if (safety < 60 || credibility < 60 || differentiation < 50) {
+  } else if (safety < 60 || credibility < 60 || differentiation < 50 || titleScore < 50) {
     advice = "建议修改后发布";
   }
 
-  return { differentiation, credibility, safety, advice };
+  return { differentiation, credibility, safety, titleScore, deAIfication, advice };
 }
 
 function extractTopicKeywords(title: string): string[] {
@@ -1391,6 +1657,19 @@ export function analyze(
     ),
   ];
 
+  // 城市更新敏感词检测
+  for (const s of URBAN_RENEWAL_SENSITIVE) {
+    if (fullText.includes(s.word)) {
+      contentIssues.push({
+        type: "城市更新敏感词",
+        original: s.word,
+        suggestion: s.replace || "删除或替换为中性表述",
+        severity: s.level,
+        position: fullText.indexOf(s.word) < title.length ? "标题" : "正文",
+      });
+    }
+  }
+
   const policyChecks = extractPolicyCitations(title, content);
 
   if (policyChecks.length > 0) {
@@ -1416,14 +1695,36 @@ export function analyze(
   );
   const rewrites = generateRewrites(title, content, platforms);
   const rewrittenVersion = generateRewrittenVersion(title, content, policyChecks);
+
+  // 新增检测维度
+  const titleScoreResult = calculateTitleScore(title, platforms);
+  const deAIficationResult = checkDeAIfication(title, content);
+  const dateComplianceResult = checkDateCompliance(title, content);
+  const privacyComplianceResult = checkPrivacyCompliance(title, content);
+  const placementRatioResult = checkPlacementRatio(content);
+  const structureMatchResult = checkStructureMatch(content, platforms);
+
   const scores = calculateScores(
     titleIssues,
     contentIssues,
     policyChecks,
-    platformRisks
+    platformRisks,
+    deAIficationResult.issues,
+    dateComplianceResult.issues,
+    privacyComplianceResult.issues,
+    placementRatioResult.issues
   );
+
+  // 把新增维度的问题也加入actionList
+  const allNewIssues = [
+    ...deAIficationResult.issues,
+    ...dateComplianceResult.issues,
+    ...privacyComplianceResult.issues,
+    ...placementRatioResult.issues,
+  ];
+
   const actionList = buildActionList(
-    titleIssues,
+    [...titleIssues, ...allNewIssues],
     contentIssues,
     policyChecks
   );
@@ -1437,5 +1738,11 @@ export function analyze(
     rewrites,
     rewrittenVersion,
     actionList,
+    titleScore: titleScoreResult,
+    deAIfication: deAIficationResult,
+    dateCompliance: dateComplianceResult,
+    privacyCompliance: privacyComplianceResult,
+    placementRatio: placementRatioResult,
+    structureMatch: structureMatchResult,
   };
 }

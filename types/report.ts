@@ -12,12 +12,61 @@ export type TriggerType =
   | "虚假数字"
   | "诱导行为"
   | "资质缺失"
-  | "营销软文";
+  | "营销软文"
+  | "日期模糊"
+  | "隐私泄露"
+  | "AI痕迹"
+  | "植入超标"
+  | "结构不符";
+
+export interface TitleScore {
+  keywordHit: number;      // 0-3
+  hookStrength: number;    // 0-3
+  safety: number;          // 0-2
+  platformFit: number;     // 0-2
+  total: number;           // 0-10
+  comment: string;
+}
+
+export interface DeAIficationCheck {
+  score: number;           // 0-100，越高越像人写的
+  issues: DetectedIssue[];
+  summary: string;
+}
+
+export interface DateComplianceCheck {
+  passed: boolean;
+  issues: DetectedIssue[];
+  summary: string;
+}
+
+export interface PrivacyComplianceCheck {
+  passed: boolean;
+  issues: DetectedIssue[];
+  summary: string;
+}
+
+export interface PlacementRatioCheck {
+  ratio: number;           // 实际百分比
+  passed: boolean;         // ≤10%为通过
+  wordCount: number;       // 产品信息字数
+  totalWordCount: number;
+  issues: DetectedIssue[];
+}
+
+export interface StructureMatchCheck {
+  platform: Platform;
+  expectedStructure: string;
+  matchScore: number;      // 0-100
+  comment: string;
+}
 
 export interface Scores {
   differentiation: number;
   credibility: number;
   safety: number;
+  titleScore: number;        // 新增：标题综合得分（0-10映射为0-100）
+  deAIfication: number;      // 新增：去AI化得分
   advice: PublishAdvice;
 }
 
@@ -121,4 +170,10 @@ export interface AnalysisReport {
   rewrites: RewriteSuggestion[];
   rewrittenVersion: RewrittenVersion;
   actionList: ActionItem[];
+  titleScore: TitleScore;
+  deAIfication: DeAIficationCheck;
+  dateCompliance: DateComplianceCheck;
+  privacyCompliance: PrivacyComplianceCheck;
+  placementRatio: PlacementRatioCheck;
+  structureMatch: StructureMatchCheck[];
 }

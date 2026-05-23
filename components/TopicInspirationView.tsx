@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { TopicIdea } from "@/types/topic";
-import { Copy, Check, ArrowRight, Lightbulb, Target, Zap, Quote } from "lucide-react";
+import { Copy, Check, ArrowRight, Lightbulb, Target, Zap, Quote, ChevronDown, ChevronUp, LayoutTemplate } from "lucide-react";
 
 interface TopicInspirationViewProps {
   ideas: TopicIdea[];
@@ -58,7 +58,23 @@ export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft }: TopicIns
               {idea.platforms.map((p) => (
                 <span key={p} className="tag">{p}</span>
               ))}
+              {idea.structure && (
+                <span className="tag tone-warn">
+                  <LayoutTemplate size={11} />
+                  {idea.structure}
+                </span>
+              )}
             </div>
+
+            {idea.structureReason && (
+              <div className="topic-section">
+                <p className="topic-section-text" style={{ color: "var(--text-2)", fontSize: 12 }}>
+                  推荐结构：{idea.structureReason}
+                </p>
+              </div>
+            )}
+
+            {idea.titleOptions && <TitleOptions idea={idea} />}
 
             <div className="topic-section">
               <div className="topic-section-label">
@@ -90,6 +106,50 @@ export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft }: TopicIns
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+function TitleOptions({ idea }: { idea: TopicIdea }) {
+  const [open, setOpen] = useState(false);
+  const opts = idea.titleOptions;
+  if (!opts) return null;
+
+  return (
+    <div className="topic-section" style={{ background: "var(--surface-2)", borderRadius: 8, padding: "8px 10px" }}>
+      <button
+        className="topic-section-label"
+        onClick={() => setOpen(!open)}
+        style={{ cursor: "pointer", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", border: "none", background: "transparent", padding: 0 }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Target size={12} />
+          标题 3 选 1
+        </span>
+        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="title-option">
+            <span className="tag tone-warn">流量</span>
+            <span style={{ color: "var(--text-1)", fontWeight: 500 }}>{opts.traffic.title}</span>
+            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{opts.traffic.score}/10 · {opts.traffic.reason}</span>
+          </div>
+          <div className="title-option">
+            <span className="tag tone-primary">专业</span>
+            <span style={{ color: "var(--text-1)", fontWeight: 500 }}>{opts.professional.title}</span>
+            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{opts.professional.score}/10 · {opts.professional.reason}</span>
+          </div>
+          <div className="title-option">
+            <span className="tag tone-safe">平衡</span>
+            <span style={{ color: "var(--text-1)", fontWeight: 500 }}>{opts.balanced.title}</span>
+            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{opts.balanced.score}/10 · {opts.balanced.reason}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
     </>
   );
 }

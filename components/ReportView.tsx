@@ -45,7 +45,7 @@ interface Fact { object: string; quoted: string; status: { tone: Tier; text: str
 interface Edit { orig: string; suggest: string; type: string; loc: string; level: Tier; position?: "标题" | "正文"; }
 
 interface DesignReport {
-  scores: { differentiation: ScoreItem; credibility: ScoreItem; compliance: ScoreItem; };
+  scores: { differentiation: ScoreItem; credibility: ScoreItem; compliance: ScoreItem; titleScore: ScoreItem; deAIfication: ScoreItem; };
   verdict: Verdict;
   rewrite: Rewrite;
   topic: Topic;
@@ -53,6 +53,10 @@ interface DesignReport {
   platforms: PlatformItem[];
   facts: Fact[];
   edits: Edit[];
+  dateCompliance: { passed: boolean; issues: string[]; summary: string; };
+  privacyCompliance: { passed: boolean; issues: string[]; summary: string; };
+  placementRatio: { ratio: number; passed: boolean; summary: string; };
+  structureMatch: { platform: string; expectedStructure: string; matchScore: number; comment: string; }[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -181,11 +185,25 @@ function transformReport(report: AnalysisReport, title: string, content: string)
     };
   });
 
+  // 新增维度转换
+  const ts = report.titleScore || { total: 0, comment: "" };
+  const deAI = report.deAIfication || { score: 50, summary: "" };
+  const dateC = report.dateCompliance || { passed: true, issues: [] as DetectedIssue[], summary: "" };
+  const privC = report.privacyCompliance || { passed: true, issues: [] as DetectedIssue[], summary: "" };
+  const place = report.placementRatio || { ratio: 0, passed: true, summary: "" };
+  const struct = report.structureMatch || [];
+
+  const titleScoreVal = Math.min(100, Math.round((ts.total / 10) * 100));
+  const titleScoreLabel = titleScoreVal >= 70 ? "标题质量不错，关键词和钩子兼顾" : titleScoreVal >= 40 ? "标题有优化空间" : "标题风险较高，建议重写";
+  const deAILabel = deAI.score >= 70 ? "表达自然，AI痕迹较低" : deAI.score >= 40 ? "存在一定AI痕迹，建议优化" : "AI痕迹明显，建议大幅改写";
+
   return {
     scores: {
       differentiation: { value: diffScore, tier: getTier(diffScore), label: diffLabel },
       credibility: { value: credScore, tier: getTier(credScore), label: credLabel },
       compliance: { value: compScore, tier: getTier(compScore), label: compLabel },
+      titleScore: { value: titleScoreVal, tier: getTier(titleScoreVal), label: titleScoreLabel },
+      deAIfication: { value: deAI.score, tier: getTier(deAI.score), label: deAILabel },
     },
     verdict: { tone, title: adviceTitle, sub, meta: { words: title.length + content.length, detected, duration: "1.2s" } },
     rewrite: {
@@ -221,6 +239,27 @@ function transformReport(report: AnalysisReport, title: string, content: string)
     platforms,
     facts,
     edits,
+    dateCompliance: {
+      passed: dateC.passed,
+      issues: dateC.issues.map(i => `${i.original} → ${i.suggestion}（${i.position}）`),
+      summary: dateC.summary,
+    },
+    privacyCompliance: {
+      passed: privC.passed,
+      issues: privC.issues.map(i => `${i.original} → ${i.suggestion}（${i.position}）`),
+      summary: privC.summary,
+    },
+    placementRatio: {
+      ratio: place.ratio,
+      passed: place.passed,
+      summary: place.ratio > 0 ? `产品植入占比 ${place.ratio}%${place.passed ? "，符合≤10%红线" : "，已超标"}` : "未检测到产品植入",
+    },
+    structureMatch: struct.map(s => ({
+      platform: s.platform,
+      expectedStructure: s.expectedStructure,
+      matchScore: s.matchScore,
+      comment: s.comment,
+    })),
   };
 }
 
@@ -293,6 +332,8 @@ function ScoreGrid({ scores }: { scores: DesignReport["scores"] }) {
       <ScoreCard label="差异度" icon={Zap} value={scores.differentiation.value} tier={scores.differentiation.tier} foot={scores.differentiation.label} higher="越高越好" />
       <ScoreCard label="可信度" icon={Shield} value={scores.credibility.value} tier={scores.credibility.tier} foot={scores.credibility.label} higher="越高越好" />
       <ScoreCard label="合规安全" icon={Target} value={scores.compliance.value} tier={scores.compliance.tier} foot={scores.compliance.label} higher="越高越安全" />
+      <ScoreCard label="标题质量" icon={FileText} value={scores.titleScore.value} tier={scores.titleScore.tier} foot={scores.titleScore.label} higher="越高越好" />
+      <ScoreCard label="去AI化" icon={RefreshCw} value={scores.deAIfication.value} tier={scores.deAIfication.tier} foot={scores.deAIfication.label} higher="越高越自然" />
     </div>
   );
 }
@@ -773,6 +814,72 @@ interface ReportViewProps {
   onHighlight?: (field: "标题" | "正文", text: string) => void;
 }
 
+/* ---------- ComplianceExtras ---------- */
+function ComplianceExtras({ data }: { data: DesignReport }) {
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div className="section-title">
+          <span className="idx">C</span>新增合规检测
+          <span className="section-sub">日期 / 隐私 / 植入 / 结构匹配</span>
+        </div>
+      </div>
+      <div className="section-body">
+        <div className="def-row">
+          <div className="key">日期合规</div>
+          <div className="val" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Tag tone={data.dateCompliance.passed ? "safe" : "warn"}>{data.dateCompliance.passed ? "通过" : "有问题"}</Tag>
+            <span style={{ color: "var(--text-2)" }}>{data.dateCompliance.summary}</span>
+          </div>
+        </div>
+        {data.dateCompliance.issues.length > 0 && (
+          <div className="issue-list" style={{ marginTop: 8 }}>
+            {data.dateCompliance.issues.map((t, i) => (
+              <div className="issue" key={i}><span className="num">{String(i + 1).padStart(2, "0")}</span><span style={{ color: "var(--text-2)" }}>{t}</span></div>
+            ))}
+          </div>
+        )}
+
+        <div className="def-row">
+          <div className="key">隐私合规</div>
+          <div className="val" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Tag tone={data.privacyCompliance.passed ? "safe" : "danger"}>{data.privacyCompliance.passed ? "通过" : "需脱敏"}</Tag>
+            <span style={{ color: "var(--text-2)" }}>{data.privacyCompliance.summary}</span>
+          </div>
+        </div>
+        {data.privacyCompliance.issues.length > 0 && (
+          <div className="issue-list" style={{ marginTop: 8 }}>
+            {data.privacyCompliance.issues.map((t, i) => (
+              <div className="issue" key={i}><span className="num">{String(i + 1).padStart(2, "0")}</span><span style={{ color: "var(--text-2)" }}>{t}</span></div>
+            ))}
+          </div>
+        )}
+
+        <div className="def-row">
+          <div className="key">产品植入比例</div>
+          <div className="val" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Tag tone={data.placementRatio.passed ? "safe" : "warn"}>{data.placementRatio.passed ? "合规" : "超标"}</Tag>
+            <span style={{ color: "var(--text-2)" }}>{data.placementRatio.summary}</span>
+          </div>
+        </div>
+
+        {data.structureMatch.length > 0 && (
+          <div className="def-row">
+            <div className="key">结构匹配</div>
+            <div className="val">
+              {data.structureMatch.map((s, i) => (
+                <div key={i} style={{ marginBottom: 4, color: "var(--text-2)" }}>
+                  <b>{s.platform}</b>：{s.expectedStructure}（匹配度{s.matchScore}%）· {s.comment}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function ReportView({ report, title, content, onHighlight }: ReportViewProps) {
   const data = transformReport(report, title, content);
 
@@ -789,6 +896,7 @@ export function ReportView({ report, title, content, onHighlight }: ReportViewPr
       <VerdictBanner verdict={data.verdict} />
       <ScoreGrid scores={data.scores} />
       <AnchorNav counts={counts} />
+      <ComplianceExtras data={data} />
       <TopicSection data={data.topic} />
       <HomogeneitySection data={data.homogeneity} />
       <PlatformSection platforms={data.platforms} onHighlight={onHighlight} />

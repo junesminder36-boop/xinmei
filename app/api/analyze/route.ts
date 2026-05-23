@@ -18,6 +18,8 @@ JSON 结构要求：
     "differentiation": 0-100,
     "credibility": 0-100,
     "safety": 0-100,
+    "titleScore": 0-100,
+    "deAIfication": 0-100,
     "advice": "建议发布" | "建议修改后发布" | "暂不建议发布"
   },
   "differentiation": {
@@ -101,6 +103,52 @@ JSON 结构要求：
   },
   "actionList": [
     { "from": "原文", "to": "建议改法", "reason": "修改原因", "position": "标题"|"正文" }
+  ],
+  "titleScore": {
+    "keywordHit": 0-3,
+    "hookStrength": 0-3,
+    "safety": 0-2,
+    "platformFit": 0-2,
+    "total": 0-10,
+    "comment": "评分评语"
+  },
+  "deAIfication": {
+    "score": 0-100,
+    "issues": [
+      { "type": "AI痕迹", "original": "原文", "suggestion": "建议", "severity": "低"|"中"|"高", "position": "标题"|"正文" }
+    ],
+    "summary": "去AI化总结"
+  },
+  "dateCompliance": {
+    "passed": true|false,
+    "issues": [
+      { "type": "日期模糊", "original": "原文", "suggestion": "建议", "severity": "低"|"中"|"高", "position": "标题"|"正文" }
+    ],
+    "summary": "日期合规总结"
+  },
+  "privacyCompliance": {
+    "passed": true|false,
+    "issues": [
+      { "type": "隐私泄露", "original": "原文", "suggestion": "建议", "severity": "低"|"中"|"高", "position": "标题"|"正文" }
+    ],
+    "summary": "隐私合规总结"
+  },
+  "placementRatio": {
+    "ratio": 0-100,
+    "passed": true|false,
+    "wordCount": 0,
+    "totalWordCount": 0,
+    "issues": [
+      { "type": "植入超标", "original": "原文", "suggestion": "建议", "severity": "低"|"中"|"高", "position": "标题"|"正文" }
+    ]
+  },
+  "structureMatch": [
+    {
+      "platform": "平台名",
+      "expectedStructure": "推荐结构名",
+      "matchScore": 0-100,
+      "comment": "匹配评语"
+    }
   ]
 }
 
@@ -143,7 +191,47 @@ JSON 结构要求：
 - 识别绝对化用语（最、第一、唯一、绝对、必然等）。
 - 识别虚假/夸张数字（90%的人不知道、100%等）。
 - 识别未核验政策引用（国家相关部门发布、网传文件等）。
-- 政策引用必须给出核验状态（已核验/未核验/疑似不准确）。`;
+- 政策引用必须给出核验状态（已核验/未核验/疑似不准确）。
+
+标题打分（按10分制）：
+- 关键词命中（0-3）：标题是否含目标搜索词（城市更新/物业/数字化等）。
+- 钩子强度（0-3）：是否有数字/反问/对比/冲突/反常识。
+- 安全性（0-2）：无极限词（最好/第一/唯一/绝对/国家级/领先）、无敏感词。
+- 平台适配（0-2）：公众号≤22字，小红书≤20字，知乎可稍长。
+
+去AI化检测：
+- 检测"首先...其次...再次...最后""综上所述""总而言之"等AI标志性结构。
+- 检测段落长度是否过于均匀（每段100-120字）。
+- 检测是否缺乏口语连接词（不过/说实话/讲真/话说回来）。
+- 检测是否全书面语无口语转折。
+- 给出去AI化得分（0-100）和具体修改建议。
+
+日期合规检测：
+- 检测所有政策/事件/文件发布日期是否写具体日期。
+- 标记"上周五""前几天""年初""去年""4月"等模糊表述。
+- 给出"应改为X月X日"的具体建议，无法查证则建议删除。
+
+客户隐私检测：
+- 检测文章中是否出现具体客户企业名称（如"海开控股""华润置地""中铁建"）。
+- 若发现，建议改为"某北京国企""某头部资管企业"等泛化表述。
+- 允许引用公开数据（如出租率92.6%），但须标注来源。
+- 注意：政策部门名称（国务院/住建部等）和优码自身名称不算隐私泄露。
+
+产品植入比例检测：
+- 统计正文中优码产品信息（优客云/优物云/绿洲平台/优营销/优交付/优客服/优享家/优物管/优物联）的字数占比。
+- 软植入红线：≤10%（按字数）。
+- 给出实际比例和是否合规的判断。
+
+城市更新行业专属敏感词检测：
+- 检测"强拆""钉子户""暴力拆迁""上访""补偿不公""失地农民""黑箱操作""关系户"。
+- 给出替代说法：强拆→加快推进；钉子户→协调难度较大的住户；补偿不公→个体诉求差异；失地农民→原住居民。
+
+改写要求升级：
+- 改写后的文章必须做去AI化处理（句长错落、口语连接词）。
+- 改写后的文章必须消除所有模糊日期。
+- 改写后的文章必须泛化所有具体客户企业名称（政策部门除外）。
+- 改写后的文章必须控制产品植入在10%以内。
+- 小红书版正文限1000字，emoji仅允许📌💡🎯🔑📊，禁用🥰😭🤩✨💕。`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -236,6 +324,62 @@ export async function POST(request: NextRequest) {
         { error: "AI 返回的报告结构不完整" },
         { status: 502 }
       );
+    }
+
+    // 兼容填充：若 AI 未返回新增维度，提供默认值
+    if (!report.titleScore) {
+      report.titleScore = {
+        keywordHit: 0,
+        hookStrength: 0,
+        safety: 0,
+        platformFit: 0,
+        total: 0,
+        comment: "AI 未返回标题打分，请重试",
+      };
+    }
+    if (!report.deAIfication) {
+      report.deAIfication = {
+        score: 50,
+        issues: [],
+        summary: "AI 未返回去AI化检测，请重试",
+      };
+    }
+    if (!report.dateCompliance) {
+      report.dateCompliance = {
+        passed: true,
+        issues: [],
+        summary: "AI 未返回日期合规检测，请重试",
+      };
+    }
+    if (!report.privacyCompliance) {
+      report.privacyCompliance = {
+        passed: true,
+        issues: [],
+        summary: "AI 未返回隐私合规检测，请重试",
+      };
+    }
+    if (!report.placementRatio) {
+      report.placementRatio = {
+        ratio: 0,
+        passed: true,
+        wordCount: 0,
+        totalWordCount: content.length,
+        issues: [],
+      };
+    }
+    if (!report.structureMatch) {
+      report.structureMatch = platforms.map((p) => ({
+        platform: p,
+        expectedStructure: "未识别",
+        matchScore: 50,
+        comment: "AI 未返回结构匹配检测，请重试",
+      }));
+    }
+    if (report.scores.titleScore === undefined) {
+      report.scores.titleScore = Math.round((report.titleScore.total / 10) * 100);
+    }
+    if (report.scores.deAIfication === undefined) {
+      report.scores.deAIfication = report.deAIfication.score;
     }
 
     return NextResponse.json(report);
