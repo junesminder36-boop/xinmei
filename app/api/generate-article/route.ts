@@ -89,12 +89,40 @@ ${structure ? `推荐结构：${structure}` : ""}
       throw new Error("DeepSeek 返回内容为空");
     }
 
-    // 解析返回的内容，提取标题和正文
-    const titleMatch = aiContent.match(/^标题[:：]\s*(.+)$/m);
-    const contentMatch = aiContent.match(/^正文[:：]\s*([\s\S]+)$/m);
+    // 解析返回的内容，提取标题和正文（支持多种格式）
+    let generatedTitle = title;
+    let generatedContent = aiContent;
 
-    const generatedTitle = titleMatch?.[1]?.trim() || title;
-    const generatedContent = contentMatch?.[1]?.trim() || aiContent;
+    // 尝试匹配 "标题：xxx" 格式
+    const titleMatch = aiContent.match(/^标题[:：]\s*(.+?)(?:\n|$)/m);
+    if (titleMatch) {
+      generatedTitle = titleMatch[1].trim();
+    }
+
+    // 尝试匹配 "正文：" 后的内容，或去掉标题后的剩余内容
+    const contentMatch = aiContent.match(/^正文[:：]?\s*\n?([\s\S]+)$/m);
+    if (contentMatch) {
+      generatedContent = contentMatch[1].trim();
+    } else if (titleMatch) {
+      // 如果没有明确标记正文，去掉标题行后的内容作为正文
+      const lines = aiContent.split('\n');
+      const contentLines: string[] = [];
+      let foundTitle = false;
+      for (const line of lines) {
+        if (line.match(/^标题[:：]/)) {
+          foundTitle = true;
+          continue;
+        }
+        if (foundTitle) {
+          contentLines.push(line);
+        }
+      }
+      if (contentLines.length > 0) {
+        generatedContent = contentLines.join('\n').trim();
+      }
+    }
+
+    console.log('[generate-article] 解析结果:', { title: generatedTitle.slice(0, 30), contentLength: generatedContent.length });
 
     return NextResponse.json({
       title: generatedTitle,
