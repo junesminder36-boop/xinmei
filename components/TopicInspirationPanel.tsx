@@ -59,7 +59,8 @@ export function TopicInspirationPanel({
     setFetchingHot(true);
     setHotError("");
     try {
-      const res = await fetch("/api/hot-topics");
+      // 加时间戳避免浏览器缓存
+      const res = await fetch(`/api/hot-topics?t=${Date.now()}`);
       const data = await res.json();
       if (data.topics && Array.isArray(data.topics)) {
         setHotTopics(data.topics);
@@ -68,6 +69,8 @@ export function TopicInspirationPanel({
           setHotError(`热点搜索失败，当前为预置数据。原因：${data.error}`);
         } else if (data.fallback) {
           setHotError("热点搜索返回数据不足，已补充预置数据。");
+        } else if (data.cached) {
+          setHotError("");
         }
       }
     } catch (e) {

@@ -3,7 +3,13 @@ import { DEFAULT_HOT_TOPICS } from "@/lib/hot-topics-seed";
 import { callQianfan } from "@/lib/qianfan";
 
 // 内存缓存：30分钟
-const cache = new Map<string, { data: typeof DEFAULT_HOT_TOPICS; ts: number }>();
+interface CacheEntry {
+  data: typeof DEFAULT_HOT_TOPICS;
+  ts: number;
+  fallback: boolean;
+  error: string;
+}
+const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 30 * 60 * 1000;
 
 async function fetchHotTopicsWithQianfan(): Promise<typeof DEFAULT_HOT_TOPICS> {
@@ -67,11 +73,19 @@ async function fetchHotTopicsWithQianfan(): Promise<typeof DEFAULT_HOT_TOPICS> {
     }));
 }
 
-export async function GET() {
-  // 检查缓存
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const forceRefresh = searchParams.has("refresh");
+
+  // 检查缓存（强制刷新时跳过）
   const cached = cache.get("hot-topics");
-  if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return NextResponse.json({ topics: cached.data, cached: true });
+  if (!forceRefresh && cached && Date.now() - cached.ts < CACHE_TTL) {
+    return NextResponse.json({
+      topics: cached.data,
+      cached: true,
+      fallback: cached.fallback,
+      error: cached.error,
+    });
   }
 
   let result: typeof DEFAULT_HOT_TOPICS;
@@ -99,8 +113,10 @@ export async function GET() {
   // 限制最多12条
   result = result.slice(0, 12);
 
-  // 写入缓存
-  cache.set("hot-topics", { data: result, ts: Date.now() });
+  // 写入缓存（只有成功获取到真实数据时才缓存；兜底数据不缓存，下次重试）
+  if (!fallback) {
+    cache.set("hot-topics", { data: result, ts: Date.now(), fallback: false, error: "" });
+  }
 
   return NextResponse.json({ topics: result, fallback, error: errorMsg });
 }
