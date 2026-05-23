@@ -53,18 +53,26 @@ export function TopicInspirationPanel({
   const [hotTopics, setHotTopics] = useState<Array<{ title: string; source: string; date: string }>>([]);
   const [fetchingHot, setFetchingHot] = useState(false);
   const [showHotDropdown, setShowHotDropdown] = useState(false);
+  const [hotError, setHotError] = useState<string>("");
 
   const fetchHotTopics = async () => {
     setFetchingHot(true);
+    setHotError("");
     try {
       const res = await fetch("/api/hot-topics");
       const data = await res.json();
       if (data.topics && Array.isArray(data.topics)) {
         setHotTopics(data.topics);
         setShowHotDropdown(true);
+        if (data.fallback && data.error) {
+          setHotError(`热点搜索失败，当前为预置数据。原因：${data.error}`);
+        } else if (data.fallback) {
+          setHotError("热点搜索返回数据不足，已补充预置数据。");
+        }
       }
     } catch (e) {
       console.error("获取热点失败", e);
+      setHotError("网络请求失败，请稍后重试。");
     } finally {
       setFetchingHot(false);
     }
@@ -98,6 +106,11 @@ export function TopicInspirationPanel({
               获取行业热点
             </button>
           </div>
+          {hotError && (
+            <div style={{ marginBottom: 8, padding: "6px 10px", fontSize: 12, color: "#c0392b", background: "#fdeaea", borderRadius: 6, border: "1px solid #f5c6cb" }}>
+              {hotError}
+            </div>
+          )}
           {showHotDropdown && hotTopics.length > 0 && (
             <div style={{ marginBottom: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface)", maxHeight: 180, overflow: "auto" }}>
               <div style={{ padding: "6px 10px", fontSize: 11, color: "var(--text-muted)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

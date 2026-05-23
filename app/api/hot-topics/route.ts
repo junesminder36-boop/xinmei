@@ -71,10 +71,12 @@ export async function GET() {
   // 检查缓存
   const cached = cache.get("hot-topics");
   if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return NextResponse.json({ topics: cached.data });
+    return NextResponse.json({ topics: cached.data, cached: true });
   }
 
   let result: typeof DEFAULT_HOT_TOPICS;
+  let fallback = false;
+  let errorMsg = "";
 
   try {
     result = await fetchHotTopicsWithQianfan();
@@ -82,6 +84,8 @@ export async function GET() {
     const errMsg = e instanceof Error ? e.message : String(e);
     console.error("[hot-topics] 千帆热点获取失败，使用兜底数据。错误:", errMsg);
     result = DEFAULT_HOT_TOPICS;
+    fallback = true;
+    errorMsg = errMsg;
   }
 
   // 如果千帆返回不足5条，用兜底数据补充
@@ -89,6 +93,7 @@ export async function GET() {
     const seen = new Set(result.map((r) => r.title));
     const needed = DEFAULT_HOT_TOPICS.filter((d) => !seen.has(d.title));
     result = [...result, ...needed.slice(0, 10 - result.length)];
+    fallback = true;
   }
 
   // 限制最多12条
@@ -97,5 +102,5 @@ export async function GET() {
   // 写入缓存
   cache.set("hot-topics", { data: result, ts: Date.now() });
 
-  return NextResponse.json({ topics: result });
+  return NextResponse.json({ topics: result, fallback, error: errorMsg });
 }

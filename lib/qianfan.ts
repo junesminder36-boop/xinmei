@@ -123,7 +123,7 @@ export async function callQianfan(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 45000);
 
   try {
     const response = await fetch(QIANFAN_API_URL, {
