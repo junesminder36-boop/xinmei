@@ -79,7 +79,8 @@ export async function GET() {
   try {
     result = await fetchHotTopicsWithQianfan();
   } catch (e) {
-    console.error("千帆热点获取失败，使用兜底数据:", e);
+    const errMsg = e instanceof Error ? e.message : String(e);
+    console.error("[hot-topics] 千帆热点获取失败，使用兜底数据。错误:", errMsg);
     result = DEFAULT_HOT_TOPICS;
   }
 
