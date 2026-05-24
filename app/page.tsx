@@ -61,6 +61,7 @@ export default function Home() {
   const [topicLoading, setTopicLoading] = useState(false);
   const [topicIdeas, setTopicIdeas] = useState<TopicIdea[] | null>(null);
   const [generatingArticleId, setGeneratingArticleId] = useState<string | null>(null);
+  const [generatedArticleIds, setGeneratedArticleIds] = useState<Set<string>>(new Set());
 
   const handleAnalyze = async () => {
     setLoading(true);
@@ -350,6 +351,7 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
       setContent(data.content);
       setSelectedPlatforms(idea.platforms as Platform[]);
       setReport(null);
+      setGeneratedArticleIds((prev) => new Set(prev).add(idea.id));
     } catch (e) {
       console.error("[前端] 生成文章失败:", e);
       alert(e instanceof Error ? e.message : "生成文章失败，请重试");
@@ -693,6 +695,7 @@ ${rw.recommendedContent || r.rewrittenVersion.content}
                     onUseAsDraft={handleUseAsDraft}
                     onGenerateArticle={handleGenerateArticle}
                     generatingId={generatingArticleId}
+                    generatedIds={generatedArticleIds}
                   />
                 )}
               </>

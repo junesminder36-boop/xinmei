@@ -1375,6 +1375,15 @@ body.login-route .chat-panel {
   border: 1px dashed var(--border-strong);
 }
 .btn-ghost:hover { color: var(--primary); border-color: var(--primary); background: var(--primary-tint); }
+.btn-safe {
+  background: var(--safe-soft);
+  color: var(--safe);
+  border: 1px solid var(--safe-soft);
+}
+.btn-safe:disabled {
+  opacity: 1;
+  cursor: default;
+}
 .btn-sm { height: 26px; padding: 0 8px; font-size: 12px; }
 .btn svg { width: 13px; height: 13px; }
 

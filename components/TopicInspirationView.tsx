@@ -10,6 +10,7 @@ interface TopicInspirationViewProps {
   onUseAsDraft?: (title: string, opening: string) => void;
   onGenerateArticle?: (idea: TopicIdea) => void;
   generatingId?: string | null;
+  generatedIds?: Set<string>;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -71,7 +72,7 @@ function generateTopicMarkdown(ideas: TopicIdea[], newsDesc: string): string {
   return lines.join("\n");
 }
 
-export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft, onGenerateArticle, generatingId }: TopicInspirationViewProps) {
+export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft, onGenerateArticle, generatingId, generatedIds }: TopicInspirationViewProps) {
   const handleExport = () => {
     try {
       const md = generateTopicMarkdown(ideas, newsDesc);
@@ -169,14 +170,19 @@ export function TopicInspirationView({ ideas, newsDesc, onUseAsDraft, onGenerate
             <div className="topic-card-footer" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {onGenerateArticle && (
                 <button
-                  className="btn btn-sm btn-primary"
+                  className={"btn btn-sm " + (generatedIds?.has(idea.id) ? "btn-safe" : "btn-primary")}
                   onClick={() => onGenerateArticle(idea)}
-                  disabled={generatingId === idea.id}
+                  disabled={generatingId === idea.id || generatedIds?.has(idea.id)}
                 >
                   {generatingId === idea.id ? (
                     <>
                       <span className="loading-spinner" style={{ width: 10, height: 10, borderWidth: 1.5, marginRight: 4 }} />
                       生成中…
+                    </>
+                  ) : generatedIds?.has(idea.id) ? (
+                    <>
+                      <Check size={12} />
+                      已完成
                     </>
                   ) : (
                     <>
