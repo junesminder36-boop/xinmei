@@ -19,6 +19,7 @@ const STYLES: { id: TopicStyle; label: string }[] = [
   { id: "科普拆解", label: "科普拆解" },
   { id: "故事化", label: "故事化" },
   { id: "争议讨论", label: "争议讨论" },
+  { id: "数字化解决方案", label: "数字化解决方案" },
 ];
 
 interface TopicInspirationPanelProps {
