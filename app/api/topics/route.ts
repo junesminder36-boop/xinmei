@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { TopicIdea, TopicStyle } from "@/types/topic";
+import { URBAN_RENEWAL_DATA_PROMPT } from "@/lib/industry-data";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -32,6 +33,8 @@ const SYSTEM_PROMPT = `你是一位资深的新媒体内容策划专家，精通
 - 六大产品线：优营销、优交付、优客服、优享家（业主端）、优物管、优物联
 
 服务规模：3000+项目，近1000万业主/客户。主要客户包括中铁建、中建股份、华发股份、合生创展、珠江投资、广州市住建局、梅州市住建局等。
+
+${URBAN_RENEWAL_DATA_PROMPT}
 
 ## 角度要求
 生成的5-8个选题中，必须包含至少一个与优码产品、服务、行业洞察或数智化解决方案相关的选题。例如：

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { URBAN_RENEWAL_DATA_PROMPT } from "@/lib/industry-data";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
@@ -31,6 +32,8 @@ export async function POST(request: NextRequest) {
     }
 
     const systemPrompt = `你是一位资深新媒体内容总监，擅长为不同平台撰写高质量原创稿件。
+
+${URBAN_RENEWAL_DATA_PROMPT}
 
 要求：
 1. 严格根据给定的选题标题和切入角度撰写完整文章。

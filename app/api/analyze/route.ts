@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { AnalysisReport, Platform } from "@/types/report";
+import { URBAN_RENEWAL_DATA_PROMPT } from "@/lib/industry-data";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -162,6 +163,8 @@ JSON 结构要求：
 - 六大产品线：优营销、优交付、优客服、优享家（业主端）、优物管、优物联
 
 服务规模：3000+项目，近1000万业主/客户。主要客户包括中铁建、中建股份、华发股份、合生创展、珠江投资、广州市住建局、梅州市住建局等。
+
+${URBAN_RENEWAL_DATA_PROMPT}
 
 【角度要求】
 在 differentiation.suggestedAngles（建议新角度）中，必须包含至少一个与优码产品、服务、行业洞察或数智化解决方案相关的切入角度。例如：
