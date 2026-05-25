@@ -71,6 +71,20 @@ const STYLE_TEMPLATES: Record<TopicStyle, Partial<TopicIdea>[]> = {
       hookReason: "触及价值观层面的讨论，容易引发圈层传播",
     },
   ],
+  "数字化解决方案": [
+    {
+      angle: "问题-方案-价值闭环",
+      hookReason: "直击业务痛点并给出系统解法，决策者和执行层都爱看",
+    },
+    {
+      angle: "技术赋能场景拆解",
+      hookReason: "把抽象的数字化能力落到具体场景，可信度高、易复制",
+    },
+    {
+      angle: "数据驱动效果验证",
+      hookReason: "用真实数据佐证方案价值，适合 ToB 传播和客户转化",
+    },
+  ],
 };
 
 function seededRandom(seed: string): number {
@@ -140,6 +154,13 @@ export function generateTopicIdeas(
       `如果${keyword}发生在你身上，你会怎么选`,
       `${keyword}的边界在哪里？这个话题值得认真讨论`,
     ],
+    "数字化解决方案": [
+      `${keyword}背后，一套数字化系统如何解决90%的管理难题`,
+      `从${keyword}看资产数字化：不是上系统，而是重构运营逻辑`,
+      `${keyword}场景下，数据驱动的精细化管理怎么做`,
+      `破解${keyword}痛点：从人工台账到数字孪生的跃迁路径`,
+      `${keyword}的数字化解法：问题诊断、方案落地、效果验证三步走`,
+    ],
   };
 
   const titles = baseTitles[style];
@@ -186,6 +207,10 @@ function generateOpening(keyword: string, style: TopicStyle, index: number): str
     "争议讨论": [
       `${keyword}出来后，我观察到一个有趣的现象：支持的人和反对的人，根本不在同一个频道上对话。`,
       `关于${keyword}，我想先抛一个问题：如果你是当事人，你会怎么做？先别急着回答，看完再判断。`,
+    ],
+    "数字化解决方案": [
+      `很多物业同行跟我聊${keyword}时，最大的困惑不是不知道要改，而是不知道从哪里下手。今天分享一套已经跑通的数字化解法。`,
+      `${keyword}看似是个管理问题，但拆解到底层，其实是数据问题。没有实时、准确的资产数据，精细化运营就是空中楼阁。`,
     ],
   };
   const list = openings[style];
