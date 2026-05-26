@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Platform } from "@/types/report";
 import type { TopicStyle } from "@/types/topic";
-import { Check, Sparkles, Flame, ChevronDown } from "lucide-react";
+import { Check, Sparkles, Flame, ChevronDown, RefreshCw } from "lucide-react";
 
 const PLATFORMS: { id: Platform; name: string; icon: string; brand: string }[] = [
   { id: "百家号", name: "百家号", icon: "百", brand: "pf-baijiahao" },
@@ -56,12 +56,12 @@ export function TopicInspirationPanel({
   const [showHotDropdown, setShowHotDropdown] = useState(false);
   const [hotError, setHotError] = useState<string>("");
 
-  const fetchHotTopics = async () => {
+  const fetchHotTopics = async (forceRefresh = false) => {
     setFetchingHot(true);
     setHotError("");
     try {
-      // 加时间戳避免浏览器缓存
-      const res = await fetch(`/api/hot-topics?t=${Date.now()}`);
+      const refreshParam = forceRefresh ? "&refresh" : "";
+      const res = await fetch(`/api/hot-topics?t=${Date.now()}${refreshParam}`);
       const data = await res.json();
       if (data.topics && Array.isArray(data.topics)) {
         setHotTopics(data.topics);
@@ -96,19 +96,32 @@ export function TopicInspirationPanel({
         <div>
           <div className="field-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>新闻描述或关键词</span>
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={fetchHotTopics}
-              disabled={fetchingHot}
-              style={{ padding: "2px 8px", fontSize: 12, height: 26 }}
-            >
-              {fetchingHot ? (
-                <span className="loading-spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
-              ) : (
-                <Flame size={11} />
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => fetchHotTopics()}
+                disabled={fetchingHot}
+                style={{ padding: "2px 8px", fontSize: 12, height: 26 }}
+              >
+                {fetchingHot ? (
+                  <span className="loading-spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
+                ) : (
+                  <Flame size={11} />
+                )}
+                获取行业热点
+              </button>
+              {showHotDropdown && (
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => fetchHotTopics(true)}
+                  disabled={fetchingHot}
+                  title="刷新热点"
+                  style={{ padding: "2px 6px", fontSize: 12, height: 26 }}
+                >
+                  <RefreshCw size={11} />
+                </button>
               )}
-              获取行业热点
-            </button>
+            </div>
           </div>
           {hotError && (
             <div style={{ marginBottom: 8, padding: "6px 10px", fontSize: 12, color: "#c0392b", background: "#fdeaea", borderRadius: 6, border: "1px solid #f5c6cb" }}>
