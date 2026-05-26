@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_HOT_TOPICS } from "@/lib/hot-topics-seed";
+import { DEFAULT_HOT_TOPICS, type HotTopic } from "@/lib/hot-topics-seed";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 
 // 内存缓存：30分钟
 interface CacheEntry {
-  data: typeof DEFAULT_HOT_TOPICS;
+  data: HotTopic[];
   ts: number;
   fallback: boolean;
   error: string;
@@ -14,7 +14,7 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 30 * 60 * 1000;
 
-async function fetchHotTopicsWithDeepseek(): Promise<typeof DEFAULT_HOT_TOPICS> {
+async function fetchHotTopicsWithDeepseek(): Promise<HotTopic[]> {
   const systemPrompt = `你是一位地产/物业/城市更新/产业园区行业的资深媒体观察员。
 
 任务：基于最新行业知识，整理近3天内与以下领域相关的热点话题、行业动态、市场变化或重大事件：
@@ -29,13 +29,15 @@ async function fetchHotTopicsWithDeepseek(): Promise<typeof DEFAULT_HOT_TOPICS> 
 1. 基于你的最新知识，尽量贴近真实热点，不要编造不存在的事件。
 2. 优先选择行业案例、市场数据、企业动态、运营经验类话题。
 3. 避免纯政策文件复述类话题（政策类容易被限流）。
-4. 返回严格有效的 JSON 数组，不要 Markdown 代码块。
+4. 每条热点必须进行分类，只能属于以下三类之一："城市更新"、"地产"、"物业"。
+5. 返回严格有效的 JSON 数组，不要 Markdown 代码块。
 
 每个元素结构：
 {
   "title": "热点标题，简洁有力",
   "source": "信息来源（如：新浪财经/36氪/物业深度观察/克而瑞）",
-  "date": "YYYY-MM-DD"
+  "date": "YYYY-MM-DD",
+  "category": "城市更新" | "地产" | "物业"
 }
 
 数组长度：8-12条。`;
@@ -93,11 +95,16 @@ async function fetchHotTopicsWithDeepseek(): Promise<typeof DEFAULT_HOT_TOPICS> 
     return topics
       .filter((t: { title?: string }) => t && typeof t.title === "string" && t.title.length > 5)
       .slice(0, 12)
-      .map((t: { title: string; source?: string; date?: string }) => ({
-        title: t.title,
-        source: t.source || "行业观察",
-        date: t.date || new Date().toISOString().slice(0, 10),
-      }));
+      .map((t: { title: string; source?: string; date?: string; category?: string }) => {
+        const cat = t.category;
+        const validCategory = cat === "城市更新" || cat === "地产" || cat === "物业" ? cat : "地产";
+        return {
+          title: t.title,
+          source: t.source || "行业观察",
+          date: t.date || new Date().toISOString().slice(0, 10),
+          category: validCategory,
+        };
+      });
   } catch (error) {
     clearTimeout(timeout);
     throw error;
@@ -119,7 +126,7 @@ export async function GET(request: Request) {
     });
   }
 
-  let result: typeof DEFAULT_HOT_TOPICS;
+  let result: HotTopic[];
   let fallback = false;
   let errorMsg = "";
 
